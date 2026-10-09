@@ -75,9 +75,7 @@
   .scale button:active{transform:scale(.94)}
   .scale button[aria-pressed=true]{background:var(--c);color:var(--on-c);box-shadow:0 3px 0 var(--ink)}
   .ends{display:flex;justify-content:space-between;max-width:380px;font-size:13px;color:var(--muted);font-weight:700;margin-top:5px}
-  .marks,.views{grid-template-columns:repeat(2,1fr);margin-top:10px}
-  .views{max-width:none;margin:0 0 12px}
-  .views button{height:44px;font-size:18px}
+  .marks{grid-template-columns:repeat(2,1fr);margin-top:10px}
   .marks button{height:44px;font-size:18px}
   .marks button:last-child[aria-pressed=true]{background:var(--ink);color:#fff}
 
@@ -155,10 +153,6 @@
       <section class="panel" id="done">
         <div class="step">Step 4</div>
         <h2>Your jars</h2>
-        <div class="scale views" role="group" aria-label="What the picture shows">
-          <button type="button" id="viewAll">All jars</button>
-          <button type="button" id="viewHigh">Highlights</button>
-        </div>
         <canvas class="poster" id="poster" aria-label="Preview of your filled jars"></canvas>
         <button class="big" id="share" type="button">Share my link</button>
         <input type="text" id="mylink" readonly aria-label="Your link">
@@ -247,7 +241,6 @@ try {
 } catch (e) {}
 const persist = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} };
 let other = null; // the other person's { name, color, answers } while comparing; it comes from the link in the address bar and is never stored
-let onlyHigh = false; // the picture shows just the highlights instead of every jar
 
 /* ===== color helpers ===== */
 const hexToRgb = h => { h = h.replace("#", ""); if (h.length === 3) h = [...h].map(x => x + x).join(""); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
@@ -456,18 +449,15 @@ function drawJar(c, idx, level, rgb, half = 0) { // half: -1 or 1 draws only the
 /* ===== poster ===== */
 function drawPoster(canvas) {
   const rgb = hexToRgb(state.color), orgb = other && hexToRgb(other.color);
-  // highlights: only the jars at 4 or 5 (when comparing, the ones you both put there), on a 9:16 card
-  const picks = onlyHigh ? JARS.map((_, i) => i).filter(i => high(state.answers[i]) && (!other || high(other.answers[MATE[i]]))) : null;
   // comparing needs a second legend row and room under the labels for the other person's jar name
-  const pitch = other ? 420 : 345, top0 = other ? 310 : 260;
-  const W = picks ? 1080 : PW, H = picks ? 1920 : other ? top0 + (ROWS - 1) * pitch + 420 : PH;
-  canvas.width = W; canvas.height = H;
+  const pitch = other ? 420 : 345, top0 = other ? 310 : 260, H = other ? top0 + (ROWS - 1) * pitch + 420 : PH;
+  canvas.width = PW; canvas.height = H;
   const c = canvas.getContext("2d");
-  c.fillStyle = "#fff"; c.fillRect(0, 0, W, H);
+  c.fillStyle = "#fff"; c.fillRect(0, 0, PW, H);
 
   c.fillStyle = INK; c.textBaseline = "alphabetic"; c.textAlign = "left";
   c.font = "700 104px Oswald, Impact, 'Arial Narrow', sans-serif";
-  const tw = c.measureText("Kink Jars").width, lineW = 360, gap = 26, x0 = (W - lineW - gap - tw) / 2, base = 140;
+  const tw = c.measureText("Kink Jars").width, lineW = 360, gap = 26, x0 = (PW - lineW - gap - tw) / 2, base = 140;
   c.fillRect(x0, base - 5, lineW, 7);
   c.fillText("Kink Jars", x0 + lineW + gap, base);
   const mine = state.name.trim() || (other ? "me" : ""), theirs = other && (other.name.trim() || "them");
@@ -478,11 +468,11 @@ function drawPoster(canvas) {
     c.textAlign = "center"; c.fillText(name, x0 + lineW / 2, base - 18, lineW - 12);
   }
   c.textAlign = "center"; c.font = "500 30px Oswald, 'Arial Narrow', sans-serif"; c.fillStyle = "#555";
-  c.fillText(!picks ? "(1 = a little  ·  5 = overflowing  ·  ? = curious  ·  X = hard limit)" : other ? "(only the jars we both rated 4 or 5)" : "(only my 4s and 5s  ·  5 = overflowing)", W / 2, 200);
+  c.fillText("(1 = a little  ·  5 = overflowing  ·  ? = curious  ·  X = hard limit)", PW / 2, 200);
   if (other) { // who is on which side, and what the heart means
     const items = [[rgb, "left = " + mine], [orgb, "right = " + theirs], [0, "= you both said 4 or 5"]];
-    const w = items.map(it => 34 + c.measureText(it[1]).width), total = w.reduce((s, v) => s + v + 44, -44), k = Math.min(1, (W - 80) / total);
-    c.save(); c.translate(W / 2, 252); c.scale(k, k); c.textAlign = "left"; c.lineWidth = 3; c.lineJoin = "round"; c.strokeStyle = INK;
+    const w = items.map(it => 34 + c.measureText(it[1]).width), total = w.reduce((s, v) => s + v + 44, -44), k = Math.min(1, (PW - 80) / total);
+    c.save(); c.translate(PW / 2, 252); c.scale(k, k); c.textAlign = "left"; c.lineWidth = 3; c.lineJoin = "round"; c.strokeStyle = INK;
     let x = -total / 2;
     items.forEach(([col, text], n) => {
       c.beginPath(); if (col) c.arc(x + 12, -10, 11, 0, 7); else heart(c, x + 12, -10, 11);
@@ -492,8 +482,8 @@ function drawPoster(canvas) {
     c.restore();
   }
 
-  const cell = (i, cx, top) => { // one jar with its label; cx is the middle of the jar, top its lid
-    const label = JARS[i];
+  JARS.forEach((label, i) => {
+    const cx = PW / 2 + (i % COLS - (COLS - 1) / 2) * 150, top = top0 + Math.floor(i / COLS) * pitch;
     c.save(); c.translate(cx - 48, top);
     if (other) { // one jar, two halves: mine on the left, their matching jar on the right
       const a = state.answers[i], b = other.answers[MATE[i]];
@@ -514,25 +504,7 @@ function drawPoster(canvas) {
       }
       c.fillText(line, cx, y);
     }
-  };
-
-  if (!picks) JARS.forEach((_, i) => cell(i, W / 2 + (i % COLS - (COLS - 1) / 2) * 150, top0 + Math.floor(i / COLS) * pitch));
-  else if (!picks.length) {
-    c.font = "600 44px Oswald, 'Arial Narrow', sans-serif"; c.fillStyle = "#555";
-    c.fillText(other ? "No jar you both rated 4 or 5 yet." : "No jar at 4 or 5 yet.", W / 2, H / 2);
-  } else {
-    // The card picks the column count that lets the jars be largest, and centers every row. Rows sit a little
-    // further apart than on the full sheet, because here any label can end up right above any overflow.
-    const rowH = pitch + (other ? 20 : 35), roomW = W - 120, roomTop = top0 - 30, roomH = H - 40 - roomTop;
-    let cols = 1, k = 0;
-    for (let n = 1; n <= COLS; n++) { const s = Math.min(2.4, roomW / (150 * n), roomH / (rowH * Math.ceil(picks.length / n))); if (s > k) { k = s; cols = n; } }
-    const rows = Math.ceil(picks.length / cols), used = ((rows - 1) * rowH + (other ? 400 : 340)) * k; // last row: overflow headroom, jar, a typical label
-    const y0 = roomTop + (roomH - used) / 2 + 50 * k;
-    picks.forEach((i, n) => {
-      const row = Math.floor(n / cols), inRow = row < rows - 1 ? cols : picks.length - row * cols;
-      c.save(); c.translate(W / 2 + (n % cols - (inRow - 1) / 2) * 150 * k, y0 + row * rowH * k); c.scale(k, k); cell(i, 0, 0); c.restore();
-    });
-  }
+  });
 }
 
 function drawMini(canvas, idx, level, rgb) {
@@ -637,7 +609,6 @@ function render() {
     $("noticeText").textContent = `You are comparing with ${who}. In the picture, your jars are on the left and theirs on the right.`;
     say(`Comparing with ${who}. ${m} ${m === 1 ? "match" : "matches"}: a heart marks every jar you both rated 4 or 5.`);
   }
-  $("viewAll").setAttribute("aria-pressed", !onlyHigh); $("viewHigh").setAttribute("aria-pressed", onlyHigh);
   drawPoster($("poster"));
 }
 
@@ -652,8 +623,6 @@ async function share() {
 }
 $("share").onclick = share; $("shareBar").onclick = share;
 $("mylink").onfocus = e => e.target.select();
-$("viewAll").onclick = () => { onlyHigh = false; update(); };
-$("viewHigh").onclick = () => { onlyHigh = true; update(); };
 $("reset").onclick = () => {
   if (!confirm("Empty all the jars and start over?")) return;
   state.answers = JARS.map(() => 0); state.name = ""; $("name").value = ""; other = null; bare(); say(""); persist(); update(); scrollTo({ top: 0, behavior: "smooth" });

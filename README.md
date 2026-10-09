@@ -11,8 +11,6 @@ There is no image to save. "Share my link" gives a link that holds the name, the
 - **Compare with someone:** open a link they shared, or paste it into the compare box. Each jar splits in two, yours on the left and theirs on the right, and a heart marks every jar you both rated 4 or 5. Give/receive jars are matched across (your "spanking" sits next to their "being spanked"). Their sheet is never stored; it lives in the address bar, so a reload keeps the comparison and "Stop comparing" or "Start over" drops it.
 - **Use these as my own jars:** while a link is open, this copies it onto the page as your own sheet. Handy for moving your jars to another device with your own link.
 
-Above the picture, **All jars / Highlights** switches to a 9:16 card with only the jars rated 4 or 5 (when comparing: only the jars you both rated 4 or 5). It is a view, not a file; take a screenshot to keep it.
-
 Anyone who has a link can read that sheet, and the address bar holds the other person's link while you compare.
 
 ## Host it free on GitHub Pages
