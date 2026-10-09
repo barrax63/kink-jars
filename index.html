@@ -68,6 +68,8 @@
   .q canvas{width:76px;height:124px}
   .qnum{font-size:14px;color:var(--muted);font-weight:700}
   .qlabel{font-family:Oswald,sans-serif;font-weight:600;font-size:25px;line-height:1.1;margin:2px 0 10px}
+  .qnum .linkbtn{font-size:14px;font-weight:700;padding:6px 0;margin:-6px 0}
+  .about{margin:-4px 0 12px;max-width:380px;font-size:16px;color:var(--muted)}
   .scale{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;max-width:380px}
   .scale button{height:52px;border-radius:14px;border:2px solid var(--ink);background:#fff;font-family:Oswald,sans-serif;font-weight:600;font-size:22px;transition:transform .08s}
   .scale button:active{transform:scale(.94)}
@@ -191,6 +193,37 @@ const JARS = [
 ];
 /* Give/receive pairs, by position in JARS. When two people compare, each of these is set against the other person's opposite jar. */
 const PAIRS = [[0, 1], [3, 4], [5, 6], [14, 15], [19, 20], [21, 22], [25, 26]];
+/* One-line explainers, shown behind "What's this?". Keyed by the label text, so order doesn't matter; a jar without one gets no link. */
+const ABOUT = {
+  "being a dom": "Taking the lead. You set the pace and call the shots, inside limits you both agreed.",
+  "being a sub": "Handing over the lead. You follow your partner's direction, inside limits you both agreed.",
+  "being a switch": "Liking both sides: leading at some times, following at others.",
+  "choking": "Pressing on a partner's neck or throat, also called breath play. It is never risk-free, even done carefully.",
+  "being choked": "Having a partner press on your neck or throat, also called breath play. It is never risk-free, even done carefully.",
+  "spanking": "Hitting a partner's bottom with a hand, or with something like a paddle.",
+  "being spanked": "Being hit on the bottom with a hand, or with something like a paddle.",
+  "ddlg / mdlb": "Daddy dom / little girl, mommy dom / little boy. Role play between adults: one is the caring one in charge, the other the looked-after \"little\".",
+  "age play": "Role play between adults in which one or both act a different age than they are.",
+  "doing stuff in public": "Being sexual somewhere you could be seen or caught, or playing with that risk.",
+  "wax play": "Dripping warm wax onto skin, from candles made to melt at a low heat.",
+  "water sports": "Play that involves urine.",
+  "role play": "Acting out characters or a made-up situation together.",
+  "consensual non consent": "A scene you plan together where one person pretends to resist. Limits and a safeword are agreed first. Often shortened to CNC.",
+  "having orgasms controlled": "Your partner decides when you get to orgasm, or whether you do.",
+  "controlling orgasms": "You decide when your partner gets to orgasm, or whether they do.",
+  "gags": "Something worn in or over the mouth that muffles speech.",
+  "feet": "Being turned on by feet: touching, kissing or looking at them, or having yours treated that way.",
+  "anal": "Sexual play involving the anus, giving or receiving.",
+  "being tied up": "Being held in place with rope, cuffs or similar, so you can't move freely.",
+  "tying people up": "Holding a partner in place with rope, cuffs or similar.",
+  "humiliating or degrading": "Embarrassing or putting down a partner who enjoys that as play, with words or tasks.",
+  "being humiliated or degraded": "Enjoying being embarrassed or put down by a partner as play, with words or tasks.",
+  "bdsm": "An umbrella term: bondage and discipline, dominance and submission, sadism and masochism.",
+  "threesomes": "Sex with three people involved.",
+  "sadism": "Enjoying giving pain or intense sensation to a partner who wants it.",
+  "masochism": "Enjoying receiving pain or intense sensation.",
+  "spit": "Spitting on a partner or being spat on, as part of play."
+};
 const PRESETS = ["#e63946","#ff5d8f","#ff8c42","#ffd23f","#7bd389","#2ec4b6","#3a86ff","#5b2a86","#c77dff","#8d1d3a","#8d5524","#2b2d42"];
 const COLS = 7, INK = "#151311", PW = 1200;
 const ROWS = Math.ceil(JARS.length / COLS);
@@ -506,8 +539,14 @@ const qWrap = $("questions"), minis = [];
 JARS.forEach((label, i) => {
   const text = label.join(" ");
   const q = document.createElement("div"); q.className = "q";
-  q.innerHTML = `<canvas aria-hidden="true"></canvas><div><div class="qnum">${i + 1} of ${JARS.length}</div><div class="qlabel"></div><div class="scale" role="group"></div><div class="ends"><span>a little</span><span>overflowing</span></div><div class="scale marks"></div></div>`;
+  q.innerHTML = `<canvas aria-hidden="true"></canvas><div><div class="qnum">${i + 1} of ${JARS.length}</div><div class="qlabel"></div><p class="about" hidden></p><div class="scale" role="group"></div><div class="ends"><span>a little</span><span>overflowing</span></div><div class="scale marks"></div></div>`;
   q.querySelector(".qlabel").textContent = text;
+  if (ABOUT[text]) {
+    const p = q.querySelector(".about"), b = document.createElement("button"); b.type = "button"; b.className = "linkbtn"; b.textContent = "What's this?";
+    p.textContent = ABOUT[text]; p.id = "about" + i; b.setAttribute("aria-controls", p.id); b.setAttribute("aria-expanded", false);
+    b.onclick = () => { p.hidden = !p.hidden; b.setAttribute("aria-expanded", !p.hidden); };
+    q.querySelector(".qnum").append(" · ", b);
+  }
   const sc = q.querySelector(".scale"), mk = q.querySelector(".marks"), buttons = []; sc.setAttribute("aria-label", text);
   for (let v = 1; v <= LIMIT; v++) {
     const b = document.createElement("button"); b.type = "button"; b.textContent = MARKS[v] || v;

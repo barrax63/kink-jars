@@ -24,6 +24,7 @@ Netlify Drop or Cloudflare Pages work too: drag the folder in, done.
 ## Customizing
 
 - **Jar labels:** edit the `JARS` array at the top of the `<script>`. Each entry is a list of label lines. The grid is 7 columns wide and grows rows as needed.
+- **Explainers:** `ABOUT` holds the one-line text behind each "What's this?" link, keyed by the jar's label. A jar without an entry simply gets no link.
 - **Give/receive pairs:** `PAIRS` lists which jars are two sides of one thing, by their position in `JARS`. Keep it in step when you reorder jars.
 - **Preset colors:** edit `PRESETS`.
 - **Overflow looks:** six styles (drips, puddle, foam with popped lid, geyser, splash, hearts), assigned so neighbors never match. Details are seeded per jar, so every friend's sheet is consistent.
