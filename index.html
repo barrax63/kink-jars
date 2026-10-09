@@ -91,6 +91,11 @@
   #mylink{margin-top:14px;font-size:15px;padding:10px 12px;font-family:ui-monospace,Menlo,monospace;color:var(--muted)}
   .msg{margin:10px 0 0;font-size:15px;color:var(--muted)}
   .msg:empty{display:none}
+  .viewing #top,.viewing .layout,.viewing .bar{display:none}
+  .view{max-width:760px;margin:0 auto}
+  .view h1 b{font-weight:inherit}
+  .viewfoot{margin:22px 0 0;text-align:center;color:var(--muted)}
+  .viewfoot .linkbtn{font-size:inherit;color:var(--ink);font-weight:700}
   .notice{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;max-width:640px;margin-top:14px;padding:12px 16px;border:2px solid var(--ink);border-radius:14px;background:#fff;font-size:16px}
 
   .bar{position:fixed;left:0;right:0;bottom:0;background:rgba(251,246,239,.96);border-top:2px solid var(--line);backdrop-filter:blur(6px);z-index:5}
@@ -104,7 +109,17 @@
 </head>
 <body>
 <div class="wrap">
-  <header>
+  <section class="view" id="view" hidden>
+    <header>
+      <h1><b id="viewWho"></b> <span>jars</span></h1>
+      <p>Shared with you as a picture. Nothing here can be changed.</p>
+    </header>
+    <svg class="poster" id="viewPic" role="img"></svg>
+    <button class="big" id="viewCompare" type="button">Compare with mine</button>
+    <p class="viewfoot"><span id="viewAsk">Want to create your own?</span> <button class="linkbtn" id="viewOwn" type="button">Click here</button></p>
+  </section>
+
+  <header id="top">
     <h1>Fill your <span>jars</span></h1>
     <p>Pick a color, rate each one from 1 (a little) to 5 (overflowing), then share your link. Not your thing? Skip it and the jar stays empty.</p>
     <div class="notice" id="notice" hidden><span id="noticeText"></span><button class="linkbtn" id="toPoster" type="button">Show the picture</button></div>
@@ -166,7 +181,7 @@
       <section class="panel">
         <div class="step">Extra</div>
         <h2>Compare with someone</h2>
-        <p class="hint">Open a link they shared from this page, or paste it here. Each jar splits in two: yours on the left, theirs on the right.</p>
+        <p class="hint">Paste a link they shared from this page, or press "Compare with mine" on their picture. Each jar splits in two: yours on the left, theirs on the right.</p>
         <form class="row" id="cmpForm">
           <input type="text" id="olink" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste their link" aria-label="Their link">
           <button class="ghost" type="submit">Compare</button>
@@ -241,6 +256,7 @@ try {
 } catch (e) {}
 const persist = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} };
 let other = null; // the other person's { name, color, answers } while comparing; it comes from the link in the address bar and is never stored
+let shown = null; // a sheet opened from a plain link: it is shown read-only instead of the page
 
 /* ===== color helpers ===== */
 const hexToRgb = h => { h = h.replace("#", ""); if (h.length === 3) h = [...h].map(x => x + x).join(""); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
@@ -447,10 +463,10 @@ function drawJar(c, idx, level, rgb, half = 0) { // half: -1 or 1 draws only the
 }
 
 /* ===== poster ===== */
-function drawPoster(canvas) {
-  const rgb = hexToRgb(state.color), orgb = other && hexToRgb(other.color);
+function drawPoster(canvas, me = state, them = other) { // them set: the two sheets side by side in one picture
+  const rgb = hexToRgb(me.color), orgb = them && hexToRgb(them.color);
   // comparing needs a second legend row and room under the labels for the other person's jar name
-  const pitch = other ? 420 : 345, top0 = other ? 310 : 260, H = other ? top0 + (ROWS - 1) * pitch + 420 : PH;
+  const pitch = them ? 420 : 345, top0 = them ? 310 : 260, H = them ? top0 + (ROWS - 1) * pitch + 420 : PH;
   canvas.width = PW; canvas.height = H;
   const c = canvas.getContext("2d");
   c.fillStyle = "#fff"; c.fillRect(0, 0, PW, H);
@@ -460,8 +476,8 @@ function drawPoster(canvas) {
   const tw = c.measureText("Kink Jars").width, lineW = 360, gap = 26, x0 = (PW - lineW - gap - tw) / 2, base = 140;
   c.fillRect(x0, base - 5, lineW, 7);
   c.fillText("Kink Jars", x0 + lineW + gap, base);
-  const mine = state.name.trim() || (other ? "me" : ""), theirs = other && (other.name.trim() || "them");
-  const name = other ? `${mine} + ${theirs}` : mine;
+  const mine = me.name.trim() || (them ? "me" : ""), theirs = them && (them.name.trim() || "them");
+  const name = them ? `${mine} + ${theirs}` : mine;
   if (name) {
     let size = 66; c.font = `${size}px "Permanent Marker", "Comic Sans MS", cursive`;
     while (c.measureText(name).width > lineW - 12 && size > 20) { size -= 2; c.font = `${size}px "Permanent Marker", "Comic Sans MS", cursive`; }
@@ -469,7 +485,7 @@ function drawPoster(canvas) {
   }
   c.textAlign = "center"; c.font = "500 30px Oswald, 'Arial Narrow', sans-serif"; c.fillStyle = "#555";
   c.fillText("(1 = a little  ·  5 = overflowing  ·  ? = curious  ·  X = hard limit)", PW / 2, 200);
-  if (other) { // who is on which side, and what the heart means
+  if (them) { // who is on which side, and what the heart means
     const items = [[rgb, "left = " + mine], [orgb, "right = " + theirs], [0, "= you both said 4 or 5"]];
     const w = items.map(it => 34 + c.measureText(it[1]).width), total = w.reduce((s, v) => s + v + 44, -44), k = Math.min(1, (PW - 80) / total);
     c.save(); c.translate(PW / 2, 252); c.scale(k, k); c.textAlign = "left"; c.lineWidth = 3; c.lineJoin = "round"; c.strokeStyle = INK;
@@ -485,18 +501,18 @@ function drawPoster(canvas) {
   JARS.forEach((label, i) => {
     const cx = PW / 2 + (i % COLS - (COLS - 1) / 2) * 150, top = top0 + Math.floor(i / COLS) * pitch;
     c.save(); c.translate(cx - 48, top);
-    if (other) { // one jar, two halves: mine on the left, their matching jar on the right
-      const a = state.answers[i], b = other.answers[MATE[i]];
+    if (them) { // one jar, two halves: mine on the left, their matching jar on the right
+      const a = me.answers[i], b = them.answers[MATE[i]];
       drawJar(c, i, a, rgb, -1); drawJar(c, i, b, orgb, 1);
       c.beginPath(); c.moveTo(48, 27); c.lineTo(48, 168); c.lineWidth = 3; c.strokeStyle = INK; c.stroke();
       if (high(a) && high(b)) { c.beginPath(); heart(c, 48, 104, 19); c.fillStyle = "#fff"; c.fill(); c.lineWidth = 4.5; c.lineJoin = "round"; c.stroke(); }
-    } else drawJar(c, i, state.answers[i], rgb);
+    } else drawJar(c, i, me.answers[i], rgb);
     c.restore();
     let size = 30; c.font = `600 ${size}px Oswald, 'Arial Narrow', sans-serif`;
     while (label.some(l => c.measureText(l).width > 140) && size > 18) { size--; c.font = `600 ${size}px Oswald, 'Arial Narrow', sans-serif`; }
     c.fillStyle = INK; c.textAlign = "center";
     label.forEach((l, k) => c.fillText(l, cx, top + 170 + 44 + k * (size + 4)));
-    if (other && MATE[i] !== i) { // name the jar the right half came from
+    if (them && MATE[i] !== i) { // name the jar the right half came from
       c.font = "500 22px Oswald, 'Arial Narrow', sans-serif"; c.fillStyle = "#555";
       let y = top + 214 + (label.length - 1) * (size + 4) + 30, line = "";
       for (const w of ("+ " + JARS[MATE[i]].join(" ")).split(" ")) {
@@ -514,12 +530,73 @@ function drawMini(canvas, idx, level, rgb) {
   drawJar(c, idx, level, rgb);
 }
 
+/* ===== vector drawing =====
+   A stand-in for a canvas that builds an <svg> instead, so the read-only picture comes out of the same drawPoster and
+   drawJar as everything else. It covers only the canvas calls this file makes. Every shape is written in the
+   coordinates it was drawn in and carries the transform of that moment, which is right as long as a path is built and
+   painted under one transform (true everywhere here). Clipping opens a group that lasts until the matching restore(). */
+let svgIds = 0;
+function svgSurface(svg) {
+  const NS = "http://www.w3.org/2000/svg", f = n => +n.toFixed(2), ruler = document.createElement("canvas").getContext("2d");
+  const el = (name, attrs, parent) => { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); return parent.appendChild(e); };
+  const KEEP = ["fillStyle", "strokeStyle", "lineWidth", "lineJoin", "lineCap", "font", "textAlign"]; // what save() remembers besides the transform and the group
+  return { width: 0, height: 0, getContext() {
+    svg.replaceChildren(); svg.setAttribute("viewBox", `0 0 ${this.width} ${this.height}`);
+    const defs = el("defs", {}, svg), stack = [];
+    let m = [1, 0, 0, 1, 0, 0], g = svg, d = "", px = 0, py = 0;
+    const mul = (a, b, p, q, e, h) => { m = [m[0] * a + m[2] * b, m[1] * a + m[3] * b, m[0] * p + m[2] * q, m[1] * p + m[3] * q, m[0] * e + m[2] * h + m[4], m[1] * e + m[3] * h + m[5]]; };
+    const at = () => m.join() === "1,0,0,1,0,0" ? {} : { transform: `matrix(${m.map(v => +v.toFixed(5)).join(" ")})` };
+    const paint = v => v.url || v, to = (x, y) => { px = x; py = y; return `${f(x)} ${f(y)}`; };
+    const c = {
+      fillStyle: "#000", strokeStyle: "#000", lineWidth: 1, lineJoin: "miter", lineCap: "butt", font: "10px sans-serif", textAlign: "left",
+      save() { stack.push([m, g, KEEP.map(k => c[k])]); },
+      restore() { const [m0, g0, kept] = stack.pop(); m = m0; g = g0; KEEP.forEach((k, i) => c[k] = kept[i]); },
+      translate(x, y) { mul(1, 0, 0, 1, x, y); }, scale(x, y) { mul(x, 0, 0, y, 0, 0); },
+      rotate(r) { mul(Math.cos(r), Math.sin(r), -Math.sin(r), Math.cos(r), 0, 0); },
+      beginPath() { d = ""; },
+      moveTo(x, y) { d += "M" + to(x, y); },
+      lineTo(x, y) { d += (d ? "L" : "M") + to(x, y); },
+      quadraticCurveTo(a, b, x, y) { d += `Q${f(a)} ${f(b)} ${to(x, y)}`; },
+      bezierCurveTo(a, b, p, q, x, y) { d += `C${f(a)} ${f(b)} ${f(p)} ${f(q)} ${to(x, y)}`; },
+      closePath() { d += "Z"; },
+      rect(x, y, w, h) { d += `M${to(x, y)}h${f(w)}v${f(h)}h${f(-w)}Z`; },
+      ellipse(x, y, rx, ry, rot, a0, a1) { // clockwise and unrotated only; a full turn is written as two halves
+        const on = a => [x + rx * Math.cos(a), y + ry * Math.sin(a)], full = a1 - a0 >= Math.PI * 2, [sx, sy] = on(a0), [ex, ey] = on(full ? a0 + Math.PI : a1);
+        c.lineTo(sx, sy); d += `A${f(rx)} ${f(ry)} 0 ${!full && a1 - a0 > Math.PI ? 1 : 0} 1 ${to(ex, ey)}`;
+        if (full) d += `A${f(rx)} ${f(ry)} 0 0 1 ${to(sx, sy)}`;
+      },
+      arc(x, y, r, a0, a1) { c.ellipse(x, y, r, r, 0, a0, a1); },
+      arcTo(x1, y1, x2, y2, r) { // round the corner at (x1,y1) on the way to (x2,y2)
+        const ax = px - x1, ay = py - y1, bx = x2 - x1, by = y2 - y1, la = Math.hypot(ax, ay), lb = Math.hypot(bx, by);
+        const t = r / Math.tan(Math.acos((ax * bx + ay * by) / (la * lb)) / 2); // how far from the corner the curve starts and ends
+        c.lineTo(x1 + ax / la * t, y1 + ay / la * t);
+        d += `A${f(r)} ${f(r)} 0 0 ${ax * by - ay * bx < 0 ? 1 : 0} ${to(x1 + bx / lb * t, y1 + by / lb * t)}`;
+      },
+      fill() { el("path", { d, fill: paint(c.fillStyle), ...at() }, g); },
+      stroke() { el("path", { d, fill: "none", stroke: paint(c.strokeStyle), "stroke-width": f(c.lineWidth), "stroke-linejoin": c.lineJoin, "stroke-linecap": c.lineCap, ...at() }, g); },
+      fillRect(x, y, w, h) { el("rect", { x: f(x), y: f(y), width: f(w), height: f(h), fill: paint(c.fillStyle), ...at() }, g); },
+      clip() { const id = "kj" + ++svgIds; el("path", { d, ...at() }, el("clipPath", { id }, defs)); g = el("g", { "clip-path": `url(#${id})` }, g); },
+      createLinearGradient(x0, y0, x1, y1) {
+        const id = "kj" + ++svgIds, node = el("linearGradient", { id, gradientUnits: "userSpaceOnUse", x1: f(x0), y1: f(y0), x2: f(x1), y2: f(y1) }, defs);
+        return { url: `url(#${id})`, addColorStop(offset, color) { el("stop", { offset, "stop-color": color }, node); } };
+      },
+      measureText(text) { ruler.font = c.font; return ruler.measureText(text); },
+      fillText(text, x, y, max) {
+        const t = el("text", { x: f(x), y: f(y), fill: paint(c.fillStyle), "text-anchor": c.textAlign === "center" ? "middle" : "start", style: "white-space:pre;font:" + c.font, ...at() }, g);
+        t.textContent = text;
+        if (max && c.measureText(text).width > max) { t.setAttribute("textLength", f(max)); t.setAttribute("lengthAdjust", "spacingAndGlyphs"); }
+      }
+    };
+    return c;
+  } };
+}
+
 /* ===== links =====
    A sheet travels as a link. Everything sits after the #, which browsers never send to the host.
    "1" (the format) + color (6 hex) + one digit per jar (0-7) + the name as UTF-8 hex. */
 const pack = s => "1" + rgbToHex(hexToRgb(s.color)).slice(1) + s.answers.join("") + [...new TextEncoder().encode(s.name.trim())].map(b => b.toString(16).padStart(2, "0")).join("");
 function unpack(text) { // takes a whole link, or just the part after the #
-  const m = new RegExp(`(?:^|#)1([0-9a-f]{6})([0-7]{${JARS.length}})((?:[0-9a-f]{2})*)`).exec(text.trim().toLowerCase());
+  const m = new RegExp(`(?:^|#(?:vs)?)1([0-9a-f]{6})([0-7]{${JARS.length}})((?:[0-9a-f]{2})*)`).exec(text.trim().toLowerCase());
   if (!m) return null;
   let name = "";
   try { name = new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(m[3].match(/../g) || [], h => parseInt(h, 16))); } catch (e) {}
@@ -527,8 +604,9 @@ function unpack(text) { // takes a whole link, or just the part after the #
 }
 const myLink = () => location.href.split("#")[0] + "#" + pack(state);
 const bare = () => { try { history.replaceState(null, "", location.href.split("#")[0]); } catch (e) {} };
-function fromHash() { // an opened link means: compare with that sheet. It stays in the address bar, so a reload keeps it.
-  other = unpack(location.hash);
+function fromHash() { // "#<sheet>" shows that sheet read-only, "#vs<sheet>" compares it with mine. It stays in the address bar, so a reload keeps it.
+  const sheet = unpack(location.hash), vs = location.hash.startsWith("#vs");
+  shown = vs ? null : sheet; other = vs ? sheet : null;
   if (!other || pack(other) !== pack(state)) return "";
   other = null; bare(); return "That one is your own link.";
 }
@@ -585,8 +663,17 @@ function setColor(hex, fromHexBox) { state.color = hex.toLowerCase(); persist();
 let queued = false;
 function update() { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; render(); }); }
 function render() {
-  const rgb = hexToRgb(state.color), root = document.documentElement.style;
-  root.setProperty("--c", state.color); root.setProperty("--on-c", lum(rgb) > 0.6 ? INK : "#fff");
+  const rgb = hexToRgb((shown || state).color), root = document.documentElement.style;
+  root.setProperty("--c", css(rgb)); root.setProperty("--on-c", lum(rgb) > 0.6 ? INK : "#fff");
+  document.body.classList.toggle("viewing", !!shown); $("view").hidden = !shown;
+  if (shown) { // someone's link, opened: their sheet as a picture and nothing to edit
+    const mine = pack(shown) === pack(state), any = state.answers.some(Boolean);
+    $("viewWho").textContent = shown.name ? shown.name + "'s" : "Someone's";
+    $("viewPic").setAttribute("aria-label", `${shown.name || "Someone"}'s filled jars`);
+    $("viewCompare").hidden = mine || !any;
+    $("viewAsk").textContent = any ? "Back to your own jars?" : "Want to create your own?";
+    return drawPoster(svgSurface($("viewPic")), shown, null);
+  }
   ["r", "g", "b"].forEach((k, n) => {
     $(k).value = rgb[n]; $(k + "v").textContent = rgb[n];
     const lo = [...rgb], hi = [...rgb]; lo[n] = 0; hi[n] = 255;
@@ -634,7 +721,7 @@ $("cmpForm").onsubmit = e => {
   e.preventDefault();
   const sheet = unpack($("olink").value);
   if (!sheet) return say("That doesn't look like a link from this page.");
-  $("olink").value = ""; location.hash = pack(sheet); // the hashchange handler takes it from here
+  $("olink").value = ""; location.hash = "vs" + pack(sheet); // the hashchange handler takes it from here
 };
 addEventListener("hashchange", () => { say(fromHash()); update(); });
 $("cmpStop").onclick = () => { other = null; bare(); say(""); update(); };
@@ -643,6 +730,8 @@ $("adopt").onclick = () => {
   state = other; other = null; $("name").value = state.name; bare(); persist(); say("These are your jars now."); update();
 };
 $("toPoster").onclick = () => $("done").scrollIntoView({ behavior: "smooth" });
+$("viewCompare").onclick = () => { location.hash = "vs" + pack(shown); scrollTo(0, 0); };
+$("viewOwn").onclick = () => { shown = null; bare(); update(); scrollTo(0, 0); };
 
 say(fromHash());
 
