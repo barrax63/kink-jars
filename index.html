@@ -33,7 +33,7 @@
   header h1 span{color:var(--c);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill}
   header p{margin:10px 0 0;color:var(--muted);max-width:640px}
   .layout{display:grid;gap:24px}
-  @media(min-width:960px){.layout{grid-template-columns:minmax(0,1fr) 430px}.side{position:sticky;top:20px;align-self:start}}
+  @media(min-width:960px){.layout{grid-template-columns:minmax(0,1fr) 430px}.side{position:sticky;top:20px;align-self:start;max-height:calc(100vh - 40px);overflow-y:auto;scrollbar-width:thin}}
   .panel{background:var(--card);border:2px solid var(--line);border-radius:22px;padding:20px;margin-bottom:20px}
   .step{font-family:Oswald,sans-serif;font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   h2{font-family:Oswald,sans-serif;font-weight:600;font-size:27px;margin:2px 0 12px;line-height:1.15}
@@ -83,6 +83,10 @@
   .big:active{transform:translateY(3px);box-shadow:0 2px 0 var(--ink)}
   .small-links{display:flex;justify-content:space-between;gap:10px;margin-top:14px;font-size:15px;color:var(--muted)}
   .linkbtn{background:none;border:0;padding:4px 0;text-decoration:underline;color:var(--muted);font-size:15px}
+  .row{display:flex;gap:10px 16px;align-items:center;flex-wrap:wrap}
+  #oname{margin-top:14px}
+  #readMsg{margin:14px 0 6px}
+  #readMsg:empty{display:none}
 
   .bar{position:fixed;left:0;right:0;bottom:0;background:rgba(251,246,239,.96);border-top:2px solid var(--line);backdrop-filter:blur(6px);z-index:5}
   .bar-in{max-width:1180px;margin:0 auto;padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:14px}
@@ -156,6 +160,20 @@
           <button class="linkbtn" id="reset" type="button">Start over</button>
         </div>
       </section>
+
+      <section class="panel">
+        <div class="step">Extra</div>
+        <h2>Compare with someone</h2>
+        <p class="hint">Add a picture they saved from this page. Each jar splits in two: yours on the left, theirs on the right. It is read on your phone and never uploaded.</p>
+        <div class="row">
+          <button class="ghost" id="cmpBtn" type="button">Add their picture</button>
+          <button class="linkbtn" id="cmpStop" type="button" hidden>Stop comparing</button>
+        </div>
+        <input type="text" id="oname" maxlength="24" autocomplete="off" placeholder="Their name" aria-label="Their name" hidden>
+        <p class="hint" id="readMsg" role="status"></p>
+        <button class="linkbtn" id="loadBtn" type="button">Load my own saved picture</button>
+        <input type="file" id="file" accept="image/*" hidden>
+      </section>
     </aside>
   </div>
 </div>
@@ -179,12 +197,17 @@ const JARS = [
   ["having","orgasms","controlled"],["controlling","orgasms"],["gags"],["feet"],["anal"],["being","tied up"],["tying","people up"],
   ["humiliating","or","degrading"],["being","humiliated","or","degraded"],["bdsm"],["threesomes"],["sadism"],["masochism"],["spit"]
 ];
+/* Give/receive pairs, by position in JARS. When two people compare, each of these is set against the other person's opposite jar. */
+const PAIRS = [[0, 1], [3, 4], [5, 6], [14, 15], [19, 20], [21, 22], [25, 26]];
 const PRESETS = ["#e63946","#ff5d8f","#ff8c42","#ffd23f","#7bd389","#2ec4b6","#3a86ff","#5b2a86","#c77dff","#8d1d3a","#8d5524","#2b2d42"];
 const COLS = 7, INK = "#151311", PW = 1200;
 const ROWS = Math.ceil(JARS.length / COLS);
 const PH = 260 + (ROWS - 1) * 345 + 360;
 const STORE = "kinkjars-v1";
 const CURIOUS = 6, LIMIT = 7, MARKS = { [CURIOUS]: "Curious", [LIMIT]: "Hard limit" }; // answer values past the 1–5 fill levels
+const MATE = JARS.map((_, i) => i); PAIRS.forEach(([a, b]) => { MATE[a] = b; MATE[b] = a; });
+const high = v => v === 4 || v === 5;
+const jarXY = (i, pitch = 345, top = 260) => [PW / 2 + (i % COLS - (COLS - 1) / 2) * 150 - 48, top + Math.floor(i / COLS) * pitch];
 
 /* ===== state ===== */
 let state = { name: "", color: "#e63946", answers: JARS.map(() => 0) };
@@ -193,6 +216,7 @@ try {
   if (s && Array.isArray(s.answers)) state = { ...state, ...s, answers: JARS.map((_, i) => s.answers[i] || 0) };
 } catch (e) {}
 const persist = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} };
+let other = null; // the other person's { name, color, answers } while comparing; kept in memory only, never stored
 
 /* ===== color helpers ===== */
 const hexToRgb = h => { h = h.replace("#", ""); if (h.length === 3) h = [...h].map(x => x + x).join(""); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
@@ -304,10 +328,11 @@ function jarParams(idx) {
   return P;
 }
 
-function drawJar(c, idx, level, rgb) {
+function drawJar(c, idx, level, rgb, half = 0) { // half: -1 or 1 draws only the left or right side, for two people sharing one jar
   const P = jarParams(idx), r = P.r, fill = css(rgb);
   const mark = level > 5 ? level : 0; if (mark) level = 0; // curious / hard limit: an empty jar plus a marker
   c.save(); c.lineJoin = "round"; c.lineCap = "round";
+  if (half) { c.beginPath(); c.rect(half < 0 ? -80 : 48, -90, 128, 300); c.clip(); }
 
   // puddle sits under the jar
   if (level === 5 && P.puddle) {
@@ -367,10 +392,11 @@ function drawJar(c, idx, level, rgb) {
   }
 
   // lid
-  if (level === 5 && P.lid) drawLid(c, P.lid.dx, P.lid.dy, P.lid.rot); else drawLid(c);
+  if (level === 5 && P.lid && !half) drawLid(c, P.lid.dx, P.lid.dy, P.lid.rot); else drawLid(c);
 
   // markers: wobble comes from P.phase, so nothing here draws from r()
   const wob = Math.sin(P.phase);
+  if (half) { c.translate(48 + half * 22.5, 99); c.scale(.52, .52); c.translate(-48, -99); }
   if (mark === LIMIT) {
     const k = wob * 4, strips = [[8, 48 + k, 88, 150 - k], [88, 48 - k, 8, 150 + k]];
     c.lineWidth = 8; c.strokeStyle = INK;
@@ -394,34 +420,63 @@ function drawJar(c, idx, level, rgb) {
 
 /* ===== poster ===== */
 function drawPoster(canvas, scale) {
-  const rgb = hexToRgb(state.color);
-  canvas.width = PW * scale; canvas.height = PH * scale;
+  const rgb = hexToRgb(state.color), orgb = other && hexToRgb(other.color);
+  // comparing needs a second legend row and room under the labels for the other person's jar name
+  const pitch = other ? 420 : 345, top0 = other ? 310 : 260, H = other ? top0 + (ROWS - 1) * pitch + 420 : PH;
+  canvas.width = PW * scale; canvas.height = H * scale;
   const c = canvas.getContext("2d");
   c.setTransform(scale, 0, 0, scale, 0, 0);
-  c.fillStyle = "#fff"; c.fillRect(0, 0, PW, PH);
+  c.fillStyle = "#fff"; c.fillRect(0, 0, PW, H);
 
   c.fillStyle = INK; c.textBaseline = "alphabetic"; c.textAlign = "left";
   c.font = "700 104px Oswald, Impact, 'Arial Narrow', sans-serif";
   const tw = c.measureText("Kink Jars").width, lineW = 360, gap = 26, x0 = (PW - lineW - gap - tw) / 2, base = 140;
   c.fillRect(x0, base - 5, lineW, 7);
   c.fillText("Kink Jars", x0 + lineW + gap, base);
-  const name = state.name.trim();
+  const mine = state.name.trim() || (other ? "me" : ""), theirs = other && (other.name.trim() || "them");
+  const name = other ? `${mine} + ${theirs}` : mine;
   if (name) {
     let size = 66; c.font = `${size}px "Permanent Marker", "Comic Sans MS", cursive`;
     while (c.measureText(name).width > lineW - 12 && size > 20) { size -= 2; c.font = `${size}px "Permanent Marker", "Comic Sans MS", cursive`; }
-    c.textAlign = "center"; c.fillText(name, x0 + lineW / 2, base - 18);
+    c.textAlign = "center"; c.fillText(name, x0 + lineW / 2, base - 18, lineW - 12);
   }
   c.textAlign = "center"; c.font = "500 30px Oswald, 'Arial Narrow', sans-serif"; c.fillStyle = "#555";
   c.fillText("(1 = a little  ·  5 = overflowing  ·  ? = curious  ·  X = hard limit)", PW / 2, 200);
+  if (other) { // who is on which side, and what the heart means
+    const items = [[rgb, "left = " + mine], [orgb, "right = " + theirs], [0, "= you both said 4 or 5"]];
+    const w = items.map(it => 34 + c.measureText(it[1]).width), total = w.reduce((s, v) => s + v + 44, -44), k = Math.min(1, (PW - 80) / total);
+    c.save(); c.translate(PW / 2, 252); c.scale(k, k); c.textAlign = "left"; c.lineWidth = 3; c.lineJoin = "round"; c.strokeStyle = INK;
+    let x = -total / 2;
+    items.forEach(([col, text], n) => {
+      c.beginPath(); if (col) c.arc(x + 12, -10, 11, 0, 7); else heart(c, x + 12, -10, 11);
+      c.fillStyle = col ? css(col) : "#fff"; c.fill(); c.stroke();
+      c.fillStyle = "#555"; c.fillText(text, x + 34, 0); x += w[n] + 44;
+    });
+    c.restore();
+  }
 
   JARS.forEach((label, i) => {
-    const col = i % COLS, row = Math.floor(i / COLS);
-    const cx = PW / 2 + (col - (COLS - 1) / 2) * 150, top = 260 + row * 345;
-    c.save(); c.translate(cx - 48, top); drawJar(c, i, state.answers[i], rgb); c.restore();
+    const [x, top] = jarXY(i, pitch, top0), cx = x + 48;
+    c.save(); c.translate(x, top);
+    if (other) { // one jar, two halves: mine on the left, their matching jar on the right
+      const a = state.answers[i], b = other.answers[MATE[i]];
+      drawJar(c, i, a, rgb, -1); drawJar(c, i, b, orgb, 1);
+      c.beginPath(); c.moveTo(48, 27); c.lineTo(48, 168); c.lineWidth = 3; c.strokeStyle = INK; c.stroke();
+      if (high(a) && high(b)) { c.beginPath(); heart(c, 48, 104, 19); c.fillStyle = "#fff"; c.fill(); c.lineWidth = 4.5; c.lineJoin = "round"; c.stroke(); }
+    } else drawJar(c, i, state.answers[i], rgb);
+    c.restore();
     let size = 30; c.font = `600 ${size}px Oswald, 'Arial Narrow', sans-serif`;
     while (label.some(l => c.measureText(l).width > 140) && size > 18) { size--; c.font = `600 ${size}px Oswald, 'Arial Narrow', sans-serif`; }
     c.fillStyle = INK; c.textAlign = "center";
     label.forEach((l, k) => c.fillText(l, cx, top + 170 + 44 + k * (size + 4)));
+    if (other && MATE[i] !== i) { // name the jar the right half came from
+      c.font = "500 22px Oswald, 'Arial Narrow', sans-serif"; c.fillStyle = "#555";
+      let y = top + 214 + (label.length - 1) * (size + 4) + 30, line = "";
+      for (const w of ("+ " + JARS[MATE[i]].join(" ")).split(" ")) {
+        if (line && c.measureText(line + " " + w).width > 140) { c.fillText(line, cx, y); y += 26; line = w; } else line = line ? line + " " + w : w;
+      }
+      c.fillText(line, cx, y);
+    }
   });
 }
 
@@ -430,6 +485,50 @@ function drawMini(canvas, idx, level, rgb) {
   const c = canvas.getContext("2d");
   c.clearRect(0, 0, 152, 248); c.translate(28, 62);
   drawJar(c, idx, level, rgb);
+}
+
+/* ===== reading a saved picture back =====
+   A saved picture is its own save file. Each jar is redrawn in black with every possible answer, and the answer whose
+   silhouette sits closest to the picture wins. The color is then solved from the pixels of that redraw that follow the
+   color (redrawn in white too, each pixel is a known mix: picture = dark + (lit - dark) * color / 255). */
+const blank = (d, k) => d[k + 3] < 128 || Math.min(d[k], d[k + 1], d[k + 2]) > 240;
+function readPoster(img) {
+  if (img.width < 600 || Math.abs(img.width / img.height * PH / PW - 1) > 0.02) return null; // thumbnails misread; other shapes are not ours
+  const big = document.createElement("canvas"), tmp = document.createElement("canvas");
+  big.width = PW; big.height = PH;
+  const c = big.getContext("2d", { willReadFrequently: true }), t = tmp.getContext("2d", { willReadFrequently: true });
+  c.fillStyle = "#fff"; c.fillRect(0, 0, PW, PH); c.drawImage(img, 0, 0, PW, PH);
+  const redraw = (i, v, rgb) => { drawMini(tmp, i, v, rgb); return t.getImageData(0, 0, 152, 248).data; };
+  const hist = [0, 1, 2].map(() => new Uint32Array(256)), drawn = new Uint8Array(152 * 248);
+  const from = 12 * 152; // skip the top rows of the box, where the labels of the row above can reach
+  let ink = 0, inked = 0, hit = 0, seen = 0;
+  const answers = JARS.map((_, i) => {
+    const [x, y] = jarXY(i), src = c.getImageData(x - 28, y - 62, 152, 248).data; // same box and offset as drawMini
+    let there = 0;
+    for (let j = from; j < drawn.length; j++) there += drawn[j] = blank(src, j * 4) ? 0 : 1;
+    let best = 0, low = Infinity, dark, bestN = 0, bestBoth = 0;
+    for (let v = 0; v <= LIMIT; v++) {
+      const px = redraw(i, v, [0, 0, 0]);
+      let n = 0, both = 0;
+      for (let j = from; j < drawn.length; j++) if (!blank(px, j * 4)) { n++; both += drawn[j]; }
+      if (n + there - 2 * both < low) { low = n + there - 2 * both; best = v; dark = px; bestN = n; bestBoth = both; }
+    }
+    ink += bestN; inked += there; hit += bestBoth;
+    const lit = redraw(i, best, [255, 255, 255]);
+    for (let k = 0; k < lit.length; k += 4) {
+      if (dark[k + 3] < 255 || lit[k] - dark[k] < 190 || lit[k + 1] - dark[k + 1] < 190 || lit[k + 2] - dark[k + 2] < 190) continue;
+      for (let n = 0; n < 3; n++) hist[n][Math.max(0, Math.min(255, Math.round((src[k + n] - dark[k + n]) * 255 / (lit[k + n] - dark[k + n]))))]++;
+      seen++;
+    }
+    return best;
+  });
+  if (hit < ink * 0.85 || hit < inked * 0.6) return null; // our lines are missing, or far too much else is there: not one of our pictures
+  let color = null;
+  if (seen > 200) {
+    const rgb = hist.map(h => { let n = 0, v = 0; while ((n += h[v]) * 2 < seen) v++; return v; });
+    color = PRESETS.find(p => hexToRgb(p).every((v, k) => Math.abs(v - rgb[k]) < 8)) || rgbToHex(rgb);
+  }
+  return { answers, color };
 }
 
 /* ===== UI ===== */
@@ -494,6 +593,13 @@ function render() {
   });
   const n = state.answers.filter(Boolean).length;
   $("progress").textContent = `${n} of ${JARS.length} answered`;
+  $("save").textContent = $("saveBar").textContent = other ? "Save our jars" : "Save my jars";
+  $("cmpBtn").textContent = other ? "Use another picture" : "Add their picture";
+  $("oname").hidden = $("cmpStop").hidden = !other;
+  if (other) {
+    const m = state.answers.filter((v, i) => high(v) && high(other.answers[MATE[i]])).length;
+    say(`${m} ${m === 1 ? "match" : "matches"}. A heart marks every jar you both rated 4 or 5.`);
+  }
   drawPoster($("poster"), 1);
 }
 
@@ -501,7 +607,7 @@ async function save() {
   const out = document.createElement("canvas");
   drawPoster(out, 2);
   const blob = await new Promise(res => out.toBlob(res, "image/png"));
-  const slug = state.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const slug = (other ? state.name + " " + other.name : state.name).trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const fname = (slug ? slug + "-" : "") + "kink-jars.png";
   const file = new File([blob], fname, { type: "image/png" });
   const touch = matchMedia("(pointer: coarse)").matches;
@@ -519,8 +625,35 @@ $("closeModal").onclick = () => { $("modal").hidden = true; };
 $("modal").addEventListener("click", e => { if (e.target.id === "modal") $("modal").hidden = true; });
 $("reset").onclick = () => {
   if (!confirm("Empty all the jars and start over?")) return;
-  state.answers = JARS.map(() => 0); state.name = ""; $("name").value = ""; persist(); update(); scrollTo({ top: 0, behavior: "smooth" });
+  state.answers = JARS.map(() => 0); state.name = ""; $("name").value = ""; other = null; say(""); persist(); update(); scrollTo({ top: 0, behavior: "smooth" });
 };
+
+/* ===== compare with someone / load a saved picture ===== */
+let want = "";
+function say(text) { $("readMsg").textContent = text; }
+const pick = whose => { want = whose; $("file").value = ""; $("file").click(); };
+$("cmpBtn").onclick = () => pick("theirs"); $("loadBtn").onclick = () => pick("mine");
+$("file").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  let got = null;
+  try {
+    const im = new Image(), url = URL.createObjectURL(f);
+    await new Promise((ok, no) => { im.onload = ok; im.onerror = no; im.src = url; });
+    got = readPoster(im); URL.revokeObjectURL(url);
+  } catch (err) {}
+  if (!got) return say("Couldn't read that one. It has to be a whole picture saved from this page, not a crop or a screenshot.");
+  const m = /^(.+)-kink-jars/i.exec(f.name), nm = m ? m[1].replace(/-/g, " ").slice(0, 24) : ""; // our own file names start with the name
+  if (want === "theirs") { other = { name: nm, color: got.color || "#888888", answers: got.answers }; $("oname").value = nm; }
+  else {
+    if (state.answers.some(Boolean) && !confirm("Swap the jars you have now for the ones in this picture?")) return;
+    state.answers = got.answers; if (got.color) state.color = got.color;
+    if (!state.name.trim() && nm) $("name").value = state.name = nm;
+    persist(); say("Loaded. Have a look and fix any jar that came out wrong.");
+  }
+  update();
+};
+$("oname").addEventListener("input", e => { other.name = e.target.value; update(); });
+$("cmpStop").onclick = () => { other = null; say(""); update(); };
 
 render();
 Promise.all(["700 104px Oswald, Impact, 'Arial Narrow', sans-serif", "600 30px Oswald", "500 30px Oswald, 'Arial Narrow', sans-serif", '66px "Permanent Marker"'].map(f => document.fonts.load(f)))
