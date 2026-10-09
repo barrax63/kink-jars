@@ -9,10 +9,10 @@ The page makes no third-party requests: the fonts are served from the `fonts/` f
 There is no image to save. "Share my link" gives a link that holds the name, the color and every jar.
 
 - **Opening a link** shows that sheet read-only, as a vector picture drawn on the spot, with a "Want to create your own? Click here" footer underneath.
-- **Compare with someone:** press "Compare with mine" on their picture, or paste their link into the compare box. Each jar splits in two, yours on the left and theirs on the right, and a heart marks every jar you both rated 4 or 5. Give/receive jars are matched across (your "spanking" sits next to their "being spanked"). Their sheet is never stored; it lives in the address bar, so a reload keeps the comparison and "Stop comparing" or "Start over" drops it.
-- **Use these as my own jars:** while a link is open, this copies it onto the page as your own sheet. Handy for moving your jars to another device with your own link.
+- **Compare with someone:** press "Compare with mine" on their picture, or paste their link into the compare box. That opens a second read-only picture with its own link: each jar split in two, yours on the left and theirs on the right, a heart on every jar you both rated 4 or 5. Give/receive jars are matched across (your "spanking" sits next to their "being spanked"). The comparison link holds both sheets, so whoever opens it sees the same picture. It is a snapshot: change your jars and you need to compare again.
+- **Use them as my own jars:** under someone's picture, this copies the sheet onto the page as your own. Handy for moving your jars to another device with your own link.
 
-Anyone who has a link can read that sheet, and the address bar holds the other person's link while you compare.
+Sheets from a link are never stored. Anyone who has a link can read every sheet in it, and a comparison link gives away both.
 
 ## Host it free on GitHub Pages
 

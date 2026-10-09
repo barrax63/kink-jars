@@ -33,7 +33,10 @@
   header h1 span{color:var(--c);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill}
   header p{margin:10px 0 0;color:var(--muted);max-width:640px}
   .layout{display:grid;gap:24px}
-  @media(min-width:960px){.layout{grid-template-columns:minmax(0,1fr) 430px}.side{position:sticky;top:20px;align-self:start;max-height:calc(100vh - 40px);overflow-y:auto;scrollbar-width:thin}}
+  /* phones: the side column dissolves into the single column, so the compare panel can be moved to the top */
+  .side{display:contents}
+  #cmp{order:-1;margin-bottom:-4px}
+  @media(min-width:960px){.layout{grid-template-columns:minmax(0,1fr) 430px}.side{display:block;position:sticky;top:20px;align-self:start;max-height:calc(100vh - 40px);overflow-y:auto;scrollbar-width:thin}#cmp{margin-bottom:20px}}
   .panel{background:var(--card);border:2px solid var(--line);border-radius:22px;padding:20px;margin-bottom:20px}
   .step{font-family:Oswald,sans-serif;font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   h2{font-family:Oswald,sans-serif;font-weight:600;font-size:27px;margin:2px 0 12px;line-height:1.15}
@@ -94,9 +97,10 @@
   .viewing #top,.viewing .layout,.viewing .bar{display:none}
   .view{max-width:760px;margin:0 auto}
   .view h1 b{font-weight:inherit}
+  .view .msg{text-align:center}
   .viewfoot{margin:22px 0 0;text-align:center;color:var(--muted)}
+  .viewfoot + .viewfoot{margin-top:6px}
   .viewfoot .linkbtn{font-size:inherit;color:var(--ink);font-weight:700}
-  .notice{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;max-width:640px;margin-top:14px;padding:12px 16px;border:2px solid var(--ink);border-radius:14px;background:#fff;font-size:16px}
 
   .bar{position:fixed;left:0;right:0;bottom:0;background:rgba(251,246,239,.96);border-top:2px solid var(--line);backdrop-filter:blur(6px);z-index:5}
   .bar-in{max-width:1180px;margin:0 auto;padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:14px}
@@ -112,17 +116,19 @@
   <section class="view" id="view" hidden>
     <header>
       <h1><b id="viewWho"></b> <span>jars</span></h1>
-      <p>Shared with you as a picture. Nothing here can be changed.</p>
+      <p id="viewNote"></p>
     </header>
     <svg class="poster" id="viewPic" role="img"></svg>
     <button class="big" id="viewCompare" type="button">Compare with mine</button>
+    <button class="big" id="viewShare" type="button">Share this comparison</button>
+    <p class="msg" id="viewMsg" role="status"></p>
     <p class="viewfoot"><span id="viewAsk">Want to create your own?</span> <button class="linkbtn" id="viewOwn" type="button">Click here</button></p>
+    <p class="viewfoot" id="viewAdopt">Are these yours? <button class="linkbtn" id="adopt" type="button">Use them as my own jars</button></p>
   </section>
 
   <header id="top">
     <h1>Fill your <span>jars</span></h1>
     <p>Pick a color, rate each one from 1 (a little) to 5 (overflowing), then share your link. Not your thing? Skip it and the jar stays empty.</p>
-    <div class="notice" id="notice" hidden><span id="noticeText"></span><button class="linkbtn" id="toPoster" type="button">Show the picture</button></div>
   </header>
 
   <div class="layout">
@@ -178,19 +184,15 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="cmp">
         <div class="step">Extra</div>
         <h2>Compare with someone</h2>
-        <p class="hint">Paste a link they shared from this page, or press "Compare with mine" on their picture. Each jar splits in two: yours on the left, theirs on the right.</p>
+        <p class="hint">Paste a link they shared from this page. You get one picture with every jar split in two, yours on the left and theirs on the right, and a link to it that you can share.</p>
         <form class="row" id="cmpForm">
           <input type="text" id="olink" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste their link" aria-label="Their link">
           <button class="ghost" type="submit">Compare</button>
         </form>
         <p class="msg" id="cmpMsg" role="status"></p>
-        <div class="row" id="cmpOn" hidden>
-          <button class="linkbtn" id="cmpStop" type="button">Stop comparing</button>
-          <button class="linkbtn" id="adopt" type="button">Use these as my own jars</button>
-        </div>
       </section>
     </aside>
   </div>
@@ -249,14 +251,14 @@ const MATE = JARS.map((_, i) => i); PAIRS.forEach(([a, b]) => { MATE[a] = b; MAT
 const high = v => v === 4 || v === 5;
 
 /* ===== state ===== */
-let state = { name: "", color: "#e63946", answers: JARS.map(() => 0) };
+let state = { name: "", color: "#e63946", answers: JARS.map(() => 0) }, firstVisit = true;
 try {
   const s = JSON.parse(localStorage.getItem(STORE) || "null");
-  if (s && Array.isArray(s.answers)) state = { ...state, ...s, answers: JARS.map((_, i) => s.answers[i] || 0) };
+  if (s && Array.isArray(s.answers)) { state = { ...state, ...s, answers: JARS.map((_, i) => s.answers[i] || 0) }; firstVisit = false; }
 } catch (e) {}
 const persist = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} };
-let other = null; // the other person's { name, color, answers } while comparing; it comes from the link in the address bar and is never stored
-let shown = null; // a sheet opened from a plain link: it is shown read-only instead of the page
+let shown = null; // the sheet { name, color, answers } of an opened link: it is shown read-only instead of the page, and never stored
+let other = null; // a second sheet, when the link holds two: the picture then sets it beside the first
 
 /* ===== color helpers ===== */
 const hexToRgb = h => { h = h.replace("#", ""); if (h.length === 3) h = [...h].map(x => x + x).join(""); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
@@ -266,6 +268,13 @@ const css = (a, al = 1) => `rgba(${a.map(Math.round).join(",")},${al})`;
 const lighten = (a, t) => css(mix(a, [255, 255, 255], t));
 const darken = (a, t) => css(mix(a, [0, 0, 0], t));
 const lum = ([r, g, b]) => (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+function randomColor() { // any hue, kept vivid and mid-bright so the liquid reads well
+  const h = Math.random() * 360, s = 0.65 + Math.random() * 0.3, l = 0.45 + Math.random() * 0.2;
+  const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = n => 255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)));
+  return rgbToHex([f(0), f(8), f(4)]);
+}
+if (firstVisit) { state.color = randomColor(); persist(); } // a new visitor starts with a color of their own, and keeps it on reload
 
 function rng(seed) { return () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
@@ -463,7 +472,7 @@ function drawJar(c, idx, level, rgb, half = 0) { // half: -1 or 1 draws only the
 }
 
 /* ===== poster ===== */
-function drawPoster(canvas, me = state, them = other) { // them set: the two sheets side by side in one picture
+function drawPoster(canvas, me = state, them = null) { // them set: the two sheets side by side in one picture
   const rgb = hexToRgb(me.color), orgb = them && hexToRgb(them.color);
   // comparing needs a second legend row and room under the labels for the other person's jar name
   const pitch = them ? 420 : 345, top0 = them ? 310 : 260, H = them ? top0 + (ROWS - 1) * pitch + 420 : PH;
@@ -596,7 +605,7 @@ function svgSurface(svg) {
    "1" (the format) + color (6 hex) + one digit per jar (0-7) + the name as UTF-8 hex. */
 const pack = s => "1" + rgbToHex(hexToRgb(s.color)).slice(1) + s.answers.join("") + [...new TextEncoder().encode(s.name.trim())].map(b => b.toString(16).padStart(2, "0")).join("");
 function unpack(text) { // takes a whole link, or just the part after the #
-  const m = new RegExp(`(?:^|#(?:vs)?)1([0-9a-f]{6})([0-7]{${JARS.length}})((?:[0-9a-f]{2})*)`).exec(text.trim().toLowerCase());
+  const m = new RegExp(`(?:^|#)1([0-9a-f]{6})([0-7]{${JARS.length}})((?:[0-9a-f]{2})*)`).exec(text.trim().toLowerCase());
   if (!m) return null;
   let name = "";
   try { name = new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(m[3].match(/../g) || [], h => parseInt(h, 16))); } catch (e) {}
@@ -604,11 +613,9 @@ function unpack(text) { // takes a whole link, or just the part after the #
 }
 const myLink = () => location.href.split("#")[0] + "#" + pack(state);
 const bare = () => { try { history.replaceState(null, "", location.href.split("#")[0]); } catch (e) {} };
-function fromHash() { // "#<sheet>" shows that sheet read-only, "#vs<sheet>" compares it with mine. It stays in the address bar, so a reload keeps it.
-  const sheet = unpack(location.hash), vs = location.hash.startsWith("#vs");
-  shown = vs ? null : sheet; other = vs ? sheet : null;
-  if (!other || pack(other) !== pack(state)) return "";
-  other = null; bare(); return "That one is your own link.";
+function fromHash(h = location.hash) { // "#<sheet>" shows that sheet read-only, "#<sheet>vs<sheet>" the two side by side. It stays in the address bar, so a reload keeps it.
+  const i = h.indexOf("vs");
+  shown = unpack(i < 0 ? h : h.slice(0, i)); other = shown && i > 0 ? unpack(h.slice(i + 2)) : null;
 }
 
 /* ===== UI ===== */
@@ -649,12 +656,7 @@ $("hex").addEventListener("input", e => {
   let v = e.target.value.trim(); if (!v.startsWith("#")) v = "#" + v;
   if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) setColor(rgbToHex(hexToRgb(v)), true);
 });
-$("surprise").onclick = () => {
-  const h = Math.random() * 360, s = 0.65 + Math.random() * 0.3, l = 0.45 + Math.random() * 0.2;
-  const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
-  const f = n => 255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)));
-  setColor(rgbToHex([f(0), f(8), f(4)]));
-};
+$("surprise").onclick = () => setColor(randomColor());
 $("name").value = state.name;
 $("name").addEventListener("input", e => { state.name = e.target.value; persist(); update(); });
 
@@ -666,13 +668,15 @@ function render() {
   const rgb = hexToRgb((shown || state).color), root = document.documentElement.style;
   root.setProperty("--c", css(rgb)); root.setProperty("--on-c", lum(rgb) > 0.6 ? INK : "#fff");
   document.body.classList.toggle("viewing", !!shown); $("view").hidden = !shown;
-  if (shown) { // someone's link, opened: their sheet as a picture and nothing to edit
-    const mine = pack(shown) === pack(state), any = state.answers.some(Boolean);
-    $("viewWho").textContent = shown.name ? shown.name + "'s" : "Someone's";
-    $("viewPic").setAttribute("aria-label", `${shown.name || "Someone"}'s filled jars`);
-    $("viewCompare").hidden = mine || !any;
+  if (shown) { // a link, opened: one sheet, or two side by side, as a picture with nothing to edit
+    const mine = pack(shown) === pack(state), any = state.answers.some(Boolean), who = shown.name || "Someone", them = other && (other.name || "someone");
+    const m = other && shown.answers.filter((v, i) => high(v) && high(other.answers[MATE[i]])).length;
+    $("viewWho").textContent = other ? `${who} & ${them}'s` : who + "'s";
+    $("viewNote").textContent = other ? `${m} ${m === 1 ? "match" : "matches"}: a heart marks every jar both rated 4 or 5. The left half of each jar is ${who}, the right half ${them}.` : "Shared with you as a picture. Nothing here can be changed.";
+    $("viewPic").setAttribute("aria-label", other ? `${who}'s and ${them}'s jars side by side` : `${who}'s filled jars`);
+    $("viewCompare").hidden = !!other || mine || !any; $("viewShare").hidden = !other; $("viewAdopt").hidden = !!other || mine;
     $("viewAsk").textContent = any ? "Back to your own jars?" : "Want to create your own?";
-    return drawPoster(svgSurface($("viewPic")), shown, null);
+    return drawPoster(svgSurface($("viewPic")), shown, other);
   }
   ["r", "g", "b"].forEach((k, n) => {
     $(k).value = rgb[n]; $(k + "v").textContent = rgb[n];
@@ -690,29 +694,22 @@ function render() {
   $("progress").textContent = `${n} of ${JARS.length} answered`;
   const link = myLink();
   if ($("mylink").value !== link) { $("mylink").value = link; $("shareMsg").textContent = ""; }
-  $("notice").hidden = $("cmpOn").hidden = !other;
-  if (other) {
-    const who = other.name || "someone", m = state.answers.filter((v, i) => high(v) && high(other.answers[MATE[i]])).length;
-    $("noticeText").textContent = `You are comparing with ${who}. In the picture, your jars are on the left and theirs on the right.`;
-    say(`Comparing with ${who}. ${m} ${m === 1 ? "match" : "matches"}: a heart marks every jar you both rated 4 or 5.`);
-  }
   drawPoster($("poster"));
 }
 
-async function share() {
-  const url = myLink();
+async function share(url, note, field) { // phones get the share sheet; elsewhere the link is copied, or pointed at
   if (matchMedia("(pointer: coarse)").matches && navigator.share) {
     try { await navigator.share({ title: document.title, url }); return; }
     catch (e) { if (e.name === "AbortError") return; }
   }
-  try { await navigator.clipboard.writeText(url); $("shareMsg").textContent = "Link copied. Send it to whoever should see your jars."; }
-  catch (e) { $("mylink").focus(); $("shareMsg").textContent = "Copy the link above and send it."; }
+  try { await navigator.clipboard.writeText(url); note.textContent = "Link copied. Send it to whoever should see it."; }
+  catch (e) { if (field) field.focus(); note.textContent = field ? "Copy the link above and send it." : "Copy the address of this page and send it."; }
 }
-$("share").onclick = share; $("shareBar").onclick = share;
+$("share").onclick = $("shareBar").onclick = () => share(myLink(), $("shareMsg"), $("mylink"));
 $("mylink").onfocus = e => e.target.select();
 $("reset").onclick = () => {
   if (!confirm("Empty all the jars and start over?")) return;
-  state.answers = JARS.map(() => 0); state.name = ""; $("name").value = ""; other = null; bare(); say(""); persist(); update(); scrollTo({ top: 0, behavior: "smooth" });
+  state.answers = JARS.map(() => 0); state.name = ""; $("name").value = ""; say(""); persist(); update(); scrollTo({ top: 0, behavior: "smooth" });
 };
 
 /* ===== compare with someone ===== */
@@ -721,19 +718,22 @@ $("cmpForm").onsubmit = e => {
   e.preventDefault();
   const sheet = unpack($("olink").value);
   if (!sheet) return say("That doesn't look like a link from this page.");
-  $("olink").value = ""; location.hash = "vs" + pack(sheet); // the hashchange handler takes it from here
+  if (pack(sheet) === pack(state)) return say("That one is your own link.");
+  $("olink").value = ""; say(""); versus(sheet);
 };
-addEventListener("hashchange", () => { say(fromHash()); update(); });
-$("cmpStop").onclick = () => { other = null; bare(); say(""); update(); };
+
+/* ===== an opened link ===== */
+const versus = sheet => { location.hash = pack(state) + "vs" + pack(sheet); scrollTo(0, 0); }; // my sheet beside theirs, as a link of its own
+addEventListener("hashchange", () => { $("viewMsg").textContent = ""; fromHash(); update(); });
+$("viewCompare").onclick = () => versus(shown);
+$("viewShare").onclick = () => share(location.href, $("viewMsg"));
+$("viewOwn").onclick = () => { shown = other = null; bare(); update(); scrollTo(0, 0); };
 $("adopt").onclick = () => {
   if (state.answers.some(Boolean) && !confirm("Swap the jars you have now for these?")) return;
-  state = other; other = null; $("name").value = state.name; bare(); persist(); say("These are your jars now."); update();
+  state = shown; shown = null; $("name").value = state.name; bare(); persist(); update(); scrollTo(0, 0);
 };
-$("toPoster").onclick = () => $("done").scrollIntoView({ behavior: "smooth" });
-$("viewCompare").onclick = () => { location.hash = "vs" + pack(shown); scrollTo(0, 0); };
-$("viewOwn").onclick = () => { shown = null; bare(); update(); scrollTo(0, 0); };
 
-say(fromHash());
+fromHash();
 
 render();
 Promise.all(["700 104px Oswald, Impact, 'Arial Narrow', sans-serif", "600 30px Oswald", "500 30px Oswald, 'Arial Narrow', sans-serif", '66px "Permanent Marker"'].map(f => document.fonts.load(f)))
