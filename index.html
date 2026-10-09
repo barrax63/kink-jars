@@ -73,6 +73,9 @@
   .scale button:active{transform:scale(.94)}
   .scale button[aria-pressed=true]{background:var(--c);color:var(--on-c);box-shadow:0 3px 0 var(--ink)}
   .ends{display:flex;justify-content:space-between;max-width:380px;font-size:13px;color:var(--muted);font-weight:700;margin-top:5px}
+  .marks{grid-template-columns:repeat(2,1fr);margin-top:10px}
+  .marks button{height:44px;font-size:18px}
+  .marks button:last-child[aria-pressed=true]{background:var(--ink);color:#fff}
 
   /* poster + save */
   .poster{width:100%;height:auto;display:block;border-radius:12px;border:2px solid var(--line);background:#fff}
@@ -137,7 +140,7 @@
       <section class="panel">
         <div class="step">Step 3</div>
         <h2>Fill your jars</h2>
-        <p class="hint">Tap a number. Tap it again to empty the jar.</p>
+        <p class="hint">Tap a number, tag a jar as curious, or tape it shut as a hard limit. Tap again to undo.</p>
         <div id="questions"></div>
       </section>
     </main>
@@ -157,7 +160,7 @@
   </div>
 </div>
 
-<div class="bar"><div class="bar-in"><span id="progress">0 of 28 filled</span><button class="big" id="saveBar" type="button">Save my jars</button></div></div>
+<div class="bar"><div class="bar-in"><span id="progress">0 of 28 answered</span><button class="big" id="saveBar" type="button">Save my jars</button></div></div>
 
 <div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mt">
   <div class="sheet">
@@ -181,6 +184,7 @@ const COLS = 7, INK = "#151311", PW = 1200;
 const ROWS = Math.ceil(JARS.length / COLS);
 const PH = 260 + (ROWS - 1) * 345 + 360;
 const STORE = "kinkjars-v1";
+const CURIOUS = 6, LIMIT = 7, MARKS = { [CURIOUS]: "Curious", [LIMIT]: "Hard limit" }; // answer values past the 1–5 fill levels
 
 /* ===== state ===== */
 let state = { name: "", color: "#e63946", answers: JARS.map(() => 0) };
@@ -254,6 +258,11 @@ function collar(c, base, drips) {
   }
   c.lineTo(1, base); c.quadraticCurveTo(-3, base, -3, base - 4); c.quadraticCurveTo(-4, 22, 4, 18); c.closePath();
 }
+function tape(c, x1, y1, x2, y2, w) { // strip from (x1,y1) to (x2,y2) with notched ends
+  const a = Math.atan2(y2 - y1, x2 - x1), L = Math.hypot(x2 - x1, y2 - y1), co = Math.cos(a), si = Math.sin(a);
+  [[0, -w / 2], [L, -w / 2], [L - 4, 0], [L, w / 2], [0, w / 2], [4, 0]].forEach(([u, v], i) => c[i ? "lineTo" : "moveTo"](x1 + u * co - v * si, y1 + u * si + v * co));
+  c.closePath();
+}
 
 /* Each jar gets one of six "overflow" looks, with its own random details. */
 const STYLE_NAMES = ["drips", "puddle", "foam", "geyser", "splash", "hearts"];
@@ -297,6 +306,7 @@ function jarParams(idx) {
 
 function drawJar(c, idx, level, rgb) {
   const P = jarParams(idx), r = P.r, fill = css(rgb);
+  const mark = level > 5 ? level : 0; if (mark) level = 0; // curious / hard limit: an empty jar plus a marker
   c.save(); c.lineJoin = "round"; c.lineCap = "round";
 
   // puddle sits under the jar
@@ -358,6 +368,27 @@ function drawJar(c, idx, level, rgb) {
 
   // lid
   if (level === 5 && P.lid) drawLid(c, P.lid.dx, P.lid.dy, P.lid.rot); else drawLid(c);
+
+  // markers: wobble comes from P.phase, so nothing here draws from r()
+  const wob = Math.sin(P.phase);
+  if (mark === LIMIT) {
+    const k = wob * 4, strips = [[8, 48 + k, 88, 150 - k], [88, 48 - k, 8, 150 + k]];
+    c.lineWidth = 8; c.strokeStyle = INK;
+    for (const s of strips) { c.beginPath(); tape(c, ...s, 17); c.stroke(); }
+    c.fillStyle = "#f6e7b4";
+    for (const s of strips) { c.beginPath(); tape(c, ...s, 17); c.fill(); }
+  }
+  if (mark === CURIOUS) {
+    c.lineWidth = 2.4; c.strokeStyle = INK;
+    c.beginPath(); c.moveTo(6, 44); c.quadraticCurveTo(24, 62, 48, 70); c.quadraticCurveTo(72, 62, 90, 44); c.stroke();
+    c.translate(48, 70); c.rotate(wob * 0.14);
+    c.beginPath(); c.moveTo(-12, -9); c.lineTo(12, -9); c.lineTo(24, 4); c.arcTo(24, 60, -24, 60, 6); c.arcTo(-24, 60, -24, 4, 6); c.lineTo(-24, 4); c.closePath();
+    c.fillStyle = fill; c.fill(); c.lineWidth = 4.5; c.stroke();
+    c.beginPath(); c.arc(0, 0, 3.2, 0, 7); c.fillStyle = "#fff"; c.fill(); c.lineWidth = 2.4; c.stroke();
+    c.strokeStyle = c.fillStyle = lum(rgb) > 0.6 ? INK : "#fff"; c.lineWidth = 7;
+    c.beginPath(); c.moveTo(-9, 23); c.bezierCurveTo(-9, 10, 10, 10, 10, 23); c.quadraticCurveTo(10, 30, 0, 34); c.lineTo(0, 39); c.stroke();
+    c.beginPath(); c.arc(0, 50, 4.2, 0, 7); c.fill();
+  }
   c.restore();
 }
 
@@ -381,7 +412,7 @@ function drawPoster(canvas, scale) {
     c.textAlign = "center"; c.fillText(name, x0 + lineW / 2, base - 18);
   }
   c.textAlign = "center"; c.font = "500 30px Oswald, 'Arial Narrow', sans-serif"; c.fillStyle = "#555";
-  c.fillText("(1 = a little  ·  5 = overflowing)", PW / 2, 200);
+  c.fillText("(1 = a little  ·  5 = overflowing  ·  ? = curious  ·  X = hard limit)", PW / 2, 200);
 
   JARS.forEach((label, i) => {
     const col = i % COLS, row = Math.floor(i / COLS);
@@ -407,16 +438,16 @@ const qWrap = $("questions"), minis = [];
 JARS.forEach((label, i) => {
   const text = label.join(" ");
   const q = document.createElement("div"); q.className = "q";
-  q.innerHTML = `<canvas aria-hidden="true"></canvas><div><div class="qnum">${i + 1} of ${JARS.length}</div><div class="qlabel"></div><div class="scale" role="group"></div><div class="ends"><span>a little</span><span>overflowing</span></div></div>`;
+  q.innerHTML = `<canvas aria-hidden="true"></canvas><div><div class="qnum">${i + 1} of ${JARS.length}</div><div class="qlabel"></div><div class="scale" role="group"></div><div class="ends"><span>a little</span><span>overflowing</span></div><div class="scale marks"></div></div>`;
   q.querySelector(".qlabel").textContent = text;
-  const sc = q.querySelector(".scale"); sc.setAttribute("aria-label", text);
-  for (let v = 1; v <= 5; v++) {
-    const b = document.createElement("button"); b.type = "button"; b.textContent = v;
-    b.setAttribute("aria-label", `${text}: ${v} out of 5`);
+  const sc = q.querySelector(".scale"), mk = q.querySelector(".marks"), buttons = []; sc.setAttribute("aria-label", text);
+  for (let v = 1; v <= LIMIT; v++) {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = MARKS[v] || v;
+    b.setAttribute("aria-label", `${text}: ${MARKS[v] || v + " out of 5"}`);
     b.onclick = () => { state.answers[i] = state.answers[i] === v ? 0 : v; persist(); update(); };
-    sc.appendChild(b);
+    (MARKS[v] ? mk : sc).appendChild(b); buttons.push(b);
   }
-  minis.push({ canvas: q.querySelector("canvas"), buttons: [...sc.children] });
+  minis.push({ canvas: q.querySelector("canvas"), buttons });
   qWrap.appendChild(q);
 });
 
@@ -462,7 +493,7 @@ function render() {
     m.buttons.forEach((b, k) => b.setAttribute("aria-pressed", state.answers[i] === k + 1));
   });
   const n = state.answers.filter(Boolean).length;
-  $("progress").textContent = `${n} of ${JARS.length} filled`;
+  $("progress").textContent = `${n} of ${JARS.length} answered`;
   drawPoster($("poster"), 1);
 }
 

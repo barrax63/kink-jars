@@ -1,6 +1,6 @@
 # Kink Jars
 
-A single-page questionnaire: pick a color, rate each jar 1–5, save a PNG.
+A single-page questionnaire: pick a color, rate each jar 1–5 (or tag it curious, or tape it shut as a hard limit), save a PNG.
 Everything runs in the browser. Nothing is uploaded, and answers are only kept in that person's browser (localStorage) so a refresh doesn't wipe them.
 The page makes no third-party requests: the fonts are served from the `fonts/` folder, not from Google Fonts.
 
