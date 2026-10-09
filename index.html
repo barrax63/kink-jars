@@ -116,7 +116,6 @@
   <section class="view" id="view" hidden>
     <header>
       <h1><b id="viewWho"></b> <span>jars</span></h1>
-      <p id="viewNote"></p>
     </header>
     <svg class="poster" id="viewPic" role="img"></svg>
     <button class="big" id="viewCompare" type="button">Compare with mine</button>
@@ -472,32 +471,35 @@ function drawJar(c, idx, level, rgb, half = 0) { // half: -1 or 1 draws only the
 }
 
 /* ===== poster ===== */
-function drawPoster(canvas, me = state, them = null) { // them set: the two sheets side by side in one picture
+function drawPoster(canvas, me = state, them = null, plain = false) { // them set: the two sheets side by side in one picture; plain: no title and name line
   const rgb = hexToRgb(me.color), orgb = them && hexToRgb(them.color);
   // comparing needs a second legend row and room under the labels for the other person's jar name
-  const pitch = them ? 420 : 345, top0 = them ? 310 : 260, H = them ? top0 + (ROWS - 1) * pitch + 420 : PH;
+  const lift = plain ? 140 : 0, pitch = them ? 420 : 345, top0 = (them ? 310 : 260) - lift, H = them ? top0 + (ROWS - 1) * pitch + 420 : PH - lift;
   canvas.width = PW; canvas.height = H;
   const c = canvas.getContext("2d");
   c.fillStyle = "#fff"; c.fillRect(0, 0, PW, H);
 
-  c.fillStyle = INK; c.textBaseline = "alphabetic"; c.textAlign = "left";
-  c.font = "700 104px Oswald, Impact, 'Arial Narrow', sans-serif";
-  const tw = c.measureText("Kink Jars").width, lineW = 360, gap = 26, x0 = (PW - lineW - gap - tw) / 2, base = 140;
-  c.fillRect(x0, base - 5, lineW, 7);
-  c.fillText("Kink Jars", x0 + lineW + gap, base);
   const mine = me.name.trim() || (them ? "me" : ""), theirs = them && (them.name.trim() || "them");
-  const name = them ? `${mine} + ${theirs}` : mine;
-  if (name) {
-    let size = 66; c.font = `${size}px "Permanent Marker", "Comic Sans MS", cursive`;
-    while (c.measureText(name).width > lineW - 12 && size > 20) { size -= 2; c.font = `${size}px "Permanent Marker", "Comic Sans MS", cursive`; }
-    c.textAlign = "center"; c.fillText(name, x0 + lineW / 2, base - 18, lineW - 12);
+  c.textBaseline = "alphabetic";
+  if (!plain) { // the title, with the name written on the line beside it
+    c.fillStyle = INK; c.textAlign = "left";
+    c.font = "700 104px Oswald, Impact, 'Arial Narrow', sans-serif";
+    const tw = c.measureText("Kink Jars").width, lineW = 360, gap = 26, x0 = (PW - lineW - gap - tw) / 2, base = 140;
+    c.fillRect(x0, base - 5, lineW, 7);
+    c.fillText("Kink Jars", x0 + lineW + gap, base);
+    const name = them ? `${mine} + ${theirs}` : mine;
+    if (name) {
+      let size = 66; c.font = `${size}px "Permanent Marker", "Comic Sans MS", cursive`;
+      while (c.measureText(name).width > lineW - 12 && size > 20) { size -= 2; c.font = `${size}px "Permanent Marker", "Comic Sans MS", cursive`; }
+      c.textAlign = "center"; c.fillText(name, x0 + lineW / 2, base - 18, lineW - 12);
+    }
   }
   c.textAlign = "center"; c.font = "500 30px Oswald, 'Arial Narrow', sans-serif"; c.fillStyle = "#555";
-  c.fillText("(1 = a little  ·  5 = overflowing  ·  ? = curious  ·  X = hard limit)", PW / 2, 200);
+  c.fillText("(1 = a little  ·  5 = overflowing  ·  ? = curious  ·  X = hard limit)", PW / 2, 200 - lift);
   if (them) { // who is on which side, and what the heart means
     const items = [[rgb, "left = " + mine], [orgb, "right = " + theirs], [0, "= you both said 4 or 5"]];
     const w = items.map(it => 34 + c.measureText(it[1]).width), total = w.reduce((s, v) => s + v + 44, -44), k = Math.min(1, (PW - 80) / total);
-    c.save(); c.translate(PW / 2, 252); c.scale(k, k); c.textAlign = "left"; c.lineWidth = 3; c.lineJoin = "round"; c.strokeStyle = INK;
+    c.save(); c.translate(PW / 2, 252 - lift); c.scale(k, k); c.textAlign = "left"; c.lineWidth = 3; c.lineJoin = "round"; c.strokeStyle = INK;
     let x = -total / 2;
     items.forEach(([col, text], n) => {
       c.beginPath(); if (col) c.arc(x + 12, -10, 11, 0, 7); else heart(c, x + 12, -10, 11);
@@ -670,13 +672,11 @@ function render() {
   document.body.classList.toggle("viewing", !!shown); $("view").hidden = !shown;
   if (shown) { // a link, opened: one sheet, or two side by side, as a picture with nothing to edit
     const mine = pack(shown) === pack(state), any = state.answers.some(Boolean), who = shown.name || "Someone", them = other && (other.name || "someone");
-    const m = other && shown.answers.filter((v, i) => high(v) && high(other.answers[MATE[i]])).length;
     $("viewWho").textContent = other ? `${who} & ${them}'s` : who + "'s";
-    $("viewNote").textContent = other ? `${m} ${m === 1 ? "match" : "matches"}: a heart marks every jar both rated 4 or 5. The left half of each jar is ${who}, the right half ${them}.` : "Shared with you as a picture. Nothing here can be changed.";
     $("viewPic").setAttribute("aria-label", other ? `${who}'s and ${them}'s jars side by side` : `${who}'s filled jars`);
     $("viewCompare").hidden = !!other || mine || !any; $("viewShare").hidden = !other; $("viewAdopt").hidden = !!other || mine;
     $("viewAsk").textContent = any ? "Back to your own jars?" : "Want to create your own?";
-    return drawPoster(svgSurface($("viewPic")), shown, other);
+    return drawPoster(svgSurface($("viewPic")), shown, other, true);
   }
   ["r", "g", "b"].forEach((k, n) => {
     $(k).value = rgb[n]; $(k + "v").textContent = rgb[n];
