@@ -1,17 +1,17 @@
 # Kink Jars
 
-A single-page questionnaire: pick a color, rate each jar 1–5 (or tag it curious, or tape it shut as a hard limit), save a PNG.
-Everything runs in the browser. Nothing is uploaded, and answers are only kept in that person's browser (localStorage) so a refresh doesn't wipe them.
+A single-page questionnaire: pick a color, rate each jar 1–5 (or tag it curious, or tape it shut as a hard limit), share a link.
+Everything runs in the browser. Nothing is uploaded, and answers are only kept in that person's browser (localStorage) so a refresh doesn't wipe them. A shared link carries the sheet after the `#`, a part of the address browsers never send to the host.
 The page makes no third-party requests: the fonts are served from the `fonts/` folder, not from Google Fonts.
 
-## Compare, or load a saved picture
+## Share and compare
 
-A saved picture is its own save file: the page can read the jars and the color back out of it, right in the browser.
+There is no image to save. "Share my link" gives a link that holds the name, the color and every jar.
 
-- **Compare with someone:** add a picture they saved. Each jar splits in two, yours on the left and theirs on the right, and a heart marks every jar you both rated 4 or 5. Give/receive jars are matched across (your "spanking" sits next to their "being spanked"). Their answers are held in memory only and are gone on refresh.
-- **Load my own saved picture:** puts the jars and color from a saved picture back on the page. The name is not read back, except from a file name like `sam-kink-jars.png`.
+- **Compare with someone:** open a link they shared, or paste it into the compare box. Each jar splits in two, yours on the left and theirs on the right, and a heart marks every jar you both rated 4 or 5. Give/receive jars are matched across (your "spanking" sits next to their "being spanked"). Their sheet is never stored; it lives in the address bar, so a reload keeps the comparison and "Stop comparing" or "Start over" drops it.
+- **Use these as my own jars:** while a link is open, this copies it onto the page as your own sheet. Handy for moving your jars to another device with your own link.
 
-It needs the whole picture, at least 600px wide; pictures sent through a messenger are fine, crops and screenshots are refused. Comparison pictures cannot be loaded back.
+Anyone who has a link can read that sheet, and the address bar holds the other person's link while you compare.
 
 ## Host it free on GitHub Pages
 

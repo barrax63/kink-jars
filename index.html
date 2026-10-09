@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kink Jars</title>
-<meta name="description" content="Fill your jars, pick your color, save your picture.">
+<meta name="description" content="Fill your jars, pick your color, share your link.">
 <meta property="og:title" content="Kink Jars">
-<meta property="og:description" content="Fill your jars, pick your color, save your picture.">
+<meta property="og:description" content="Fill your jars, pick your color, share your link.">
 <meta name="robots" content="noindex">
 <style>
   /* fonts: self-hosted in fonts/ so the page makes no third-party requests */
@@ -77,16 +77,19 @@
   .marks button{height:44px;font-size:18px}
   .marks button:last-child[aria-pressed=true]{background:var(--ink);color:#fff}
 
-  /* poster + save */
+  /* poster + share */
   .poster{width:100%;height:auto;display:block;border-radius:12px;border:2px solid var(--line);background:#fff}
   .big{display:block;width:100%;margin-top:16px;padding:18px 20px;border-radius:18px;border:3px solid var(--ink);background:var(--c);color:var(--on-c);font-family:Oswald,sans-serif;font-weight:700;font-size:26px;letter-spacing:.02em;box-shadow:0 5px 0 var(--ink)}
   .big:active{transform:translateY(3px);box-shadow:0 2px 0 var(--ink)}
   .small-links{display:flex;justify-content:space-between;gap:10px;margin-top:14px;font-size:15px;color:var(--muted)}
-  .linkbtn{background:none;border:0;padding:4px 0;text-decoration:underline;color:var(--muted);font-size:15px}
+  .linkbtn{background:none;border:0;padding:4px 0;text-decoration:underline;color:var(--muted);font-size:15px;white-space:nowrap}
+  [hidden]{display:none!important}
   .row{display:flex;gap:10px 16px;align-items:center;flex-wrap:wrap}
-  #oname{margin-top:14px}
-  #readMsg{margin:14px 0 6px}
-  #readMsg:empty{display:none}
+  .row input{flex:1;min-width:0;width:auto;font-size:17px;padding:10px 12px}
+  #mylink{margin-top:14px;font-size:15px;padding:10px 12px;font-family:ui-monospace,Menlo,monospace;color:var(--muted)}
+  .msg{margin:10px 0 0;font-size:15px;color:var(--muted)}
+  .msg:empty{display:none}
+  .notice{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;max-width:640px;margin-top:14px;padding:12px 16px;border:2px solid var(--ink);border-radius:14px;background:#fff;font-size:16px}
 
   .bar{position:fixed;left:0;right:0;bottom:0;background:rgba(251,246,239,.96);border-top:2px solid var(--line);backdrop-filter:blur(6px);z-index:5}
   .bar-in{max-width:1180px;margin:0 auto;padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:14px}
@@ -94,12 +97,6 @@
   .bar .big{width:auto;margin:0;padding:12px 22px;font-size:21px;box-shadow:0 4px 0 var(--ink)}
   @media(min-width:960px){.bar{display:none}}
 
-  #modal{position:fixed;inset:0;background:rgba(20,16,12,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
-  #modal[hidden]{display:none}
-  .sheet{background:#fff;border-radius:22px;padding:20px;max-width:440px;width:100%;max-height:92vh;overflow:auto;text-align:center}
-  .sheet h3{font-family:Oswald,sans-serif;font-size:28px;margin:0 0 6px}
-  .sheet p{margin:0 0 12px;color:var(--muted);font-size:16px}
-  .sheet img{width:100%;border-radius:10px;border:2px solid var(--line)}
   .privacy{font-size:14px;color:var(--muted);text-align:center;margin-top:8px}
 </style>
 </head>
@@ -107,7 +104,8 @@
 <div class="wrap">
   <header>
     <h1>Fill your <span>jars</span></h1>
-    <p>Pick a color, rate each one from 1 (a little) to 5 (overflowing), then save your picture. Not your thing? Skip it and the jar stays empty.</p>
+    <p>Pick a color, rate each one from 1 (a little) to 5 (overflowing), then share your link. Not your thing? Skip it and the jar stays empty.</p>
+    <div class="notice" id="notice" hidden><span id="noticeText"></span><button class="linkbtn" id="toPoster" type="button">Show the picture</button></div>
   </header>
 
   <div class="layout">
@@ -154,9 +152,11 @@
         <div class="step">Step 4</div>
         <h2>Your jars</h2>
         <canvas class="poster" id="poster" aria-label="Preview of your filled jars"></canvas>
-        <button class="big" id="save" type="button">Save my jars</button>
+        <button class="big" id="share" type="button">Share my link</button>
+        <input type="text" id="mylink" readonly aria-label="Your link">
+        <p class="msg" id="shareMsg" role="status"></p>
         <div class="small-links">
-          <span>Nothing leaves your phone.</span>
+          <span>Nothing leaves your phone until you share your link.</span>
           <button class="linkbtn" id="reset" type="button">Start over</button>
         </div>
       </section>
@@ -164,30 +164,22 @@
       <section class="panel">
         <div class="step">Extra</div>
         <h2>Compare with someone</h2>
-        <p class="hint">Add a picture they saved from this page. Each jar splits in two: yours on the left, theirs on the right. It is read on your phone and never uploaded.</p>
-        <div class="row">
-          <button class="ghost" id="cmpBtn" type="button">Add their picture</button>
-          <button class="linkbtn" id="cmpStop" type="button" hidden>Stop comparing</button>
+        <p class="hint">Open a link they shared from this page, or paste it here. Each jar splits in two: yours on the left, theirs on the right.</p>
+        <form class="row" id="cmpForm">
+          <input type="text" id="olink" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste their link" aria-label="Their link">
+          <button class="ghost" type="submit">Compare</button>
+        </form>
+        <p class="msg" id="cmpMsg" role="status"></p>
+        <div class="row" id="cmpOn" hidden>
+          <button class="linkbtn" id="cmpStop" type="button">Stop comparing</button>
+          <button class="linkbtn" id="adopt" type="button">Use these as my own jars</button>
         </div>
-        <input type="text" id="oname" maxlength="24" autocomplete="off" placeholder="Their name" aria-label="Their name" hidden>
-        <p class="hint" id="readMsg" role="status"></p>
-        <button class="linkbtn" id="loadBtn" type="button">Load my own saved picture</button>
-        <input type="file" id="file" accept="image/*" hidden>
       </section>
     </aside>
   </div>
 </div>
 
-<div class="bar"><div class="bar-in"><span id="progress">0 of 28 answered</span><button class="big" id="saveBar" type="button">Save my jars</button></div></div>
-
-<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mt">
-  <div class="sheet">
-    <h3 id="mt">Here are your jars!</h3>
-    <p>If it didn't download, press and hold the picture (or right-click it) and choose “Save image.”</p>
-    <img id="modalImg" alt="Your filled jars">
-    <button class="big" id="closeModal" type="button">Done</button>
-  </div>
-</div>
+<div class="bar"><div class="bar-in"><span id="progress">0 of 28 answered</span><button class="big" id="shareBar" type="button">Share my link</button></div></div>
 
 <script>
 /* ===== Edit the jars here. Each array is the label, one entry per line. ===== */
@@ -207,7 +199,6 @@ const STORE = "kinkjars-v1";
 const CURIOUS = 6, LIMIT = 7, MARKS = { [CURIOUS]: "Curious", [LIMIT]: "Hard limit" }; // answer values past the 1–5 fill levels
 const MATE = JARS.map((_, i) => i); PAIRS.forEach(([a, b]) => { MATE[a] = b; MATE[b] = a; });
 const high = v => v === 4 || v === 5;
-const jarXY = (i, pitch = 345, top = 260) => [PW / 2 + (i % COLS - (COLS - 1) / 2) * 150 - 48, top + Math.floor(i / COLS) * pitch];
 
 /* ===== state ===== */
 let state = { name: "", color: "#e63946", answers: JARS.map(() => 0) };
@@ -216,7 +207,7 @@ try {
   if (s && Array.isArray(s.answers)) state = { ...state, ...s, answers: JARS.map((_, i) => s.answers[i] || 0) };
 } catch (e) {}
 const persist = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} };
-let other = null; // the other person's { name, color, answers } while comparing; kept in memory only, never stored
+let other = null; // the other person's { name, color, answers } while comparing; it comes from the link in the address bar and is never stored
 
 /* ===== color helpers ===== */
 const hexToRgb = h => { h = h.replace("#", ""); if (h.length === 3) h = [...h].map(x => x + x).join(""); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
@@ -334,8 +325,8 @@ function drawJar(c, idx, level, rgb, half = 0) { // half: -1 or 1 draws only the
   c.save(); c.lineJoin = "round"; c.lineCap = "round";
   if (half) { c.beginPath(); c.rect(half < 0 ? -80 : 48, -90, 128, 300); c.clip(); }
 
-  // puddle sits under the jar
-  if (level === 5 && P.puddle) {
+  // puddle sits under the jar (it spans the middle, so a shared jar goes without)
+  if (level === 5 && P.puddle && !half) {
     c.beginPath(); blob(c, P.puddle); c.lineWidth = 7; c.strokeStyle = INK; c.stroke(); c.fillStyle = fill; c.fill();
     c.beginPath(); c.ellipse(20, 172, 10, 2.5, 0, 0, 7); c.fillStyle = "rgba(255,255,255,.55)"; c.fill();
   }
@@ -367,16 +358,19 @@ function drawJar(c, idx, level, rgb, half = 0) { // half: -1 or 1 draws only the
   if (level === 5) {
     const shapes = [];
     const foamFill = lighten(rgb, .55);
-    if (P.style === 3) shapes.push({ fill, path: () => {
+    // a shared jar keeps only the pieces that sit wholly on this side, so nothing is cut off at the middle
+    const whole = (x, w) => !half || half * (x - 48) > w + 4, side = list => (list || []).filter(([x, , w]) => whole(x, w));
+    const drips = P.drips.filter(d => whole(d.cx, d.w * 0.56)), foam = side(P.foam), drops = side(P.drops), splats = side(P.splats), hearts = side(P.hearts);
+    if (P.style === 3 && !half) shapes.push({ fill, path: () => {
       c.moveTo(34, 24); c.quadraticCurveTo(40, 4, 36, -8);
       c.quadraticCurveTo(26, -20, 38, -24); c.quadraticCurveTo(44, -36, 52, -25);
       c.quadraticCurveTo(60, -34, 64, -21); c.quadraticCurveTo(72, -14, 60, -8);
       c.quadraticCurveTo(56, 4, 62, 24); c.closePath(); } });
-    shapes.push({ fill, path: () => collar(c, P.base, P.drips) });
-    if (P.foam) for (const [x, y, rad] of P.foam) shapes.push({ fill: foamFill, path: () => c.arc(x, y, rad, 0, 7) });
-    if (P.drops) for (const [x, y, rad] of P.drops) shapes.push({ fill, path: () => teardrop(c, x, y, rad, P.origin[0], P.origin[1]) });
-    if (P.splats) for (const [x, y, rad] of P.splats) shapes.push({ fill, path: () => c.ellipse(x, y, rad, rad * 0.4, 0, 0, 7) });
-    if (P.hearts) for (const [x, y, s] of P.hearts) shapes.push({ fill, path: () => heart(c, x, y, s) });
+    shapes.push({ fill, path: () => collar(c, P.base, drips) });
+    for (const [x, y, rad] of foam) shapes.push({ fill: foamFill, path: () => c.arc(x, y, rad, 0, 7) });
+    for (const [x, y, rad] of drops) shapes.push({ fill, path: () => teardrop(c, x, y, rad, P.origin[0], P.origin[1]) });
+    for (const [x, y, rad] of splats) shapes.push({ fill, path: () => c.ellipse(x, y, rad, rad * 0.4, 0, 0, 7) });
+    for (const [x, y, s] of hearts) shapes.push({ fill, path: () => heart(c, x, y, s) });
 
     c.lineWidth = 7; c.strokeStyle = INK;
     for (const s of shapes) { c.beginPath(); s.path(); c.stroke(); }
@@ -385,10 +379,11 @@ function drawJar(c, idx, level, rgb, half = 0) { // half: -1 or 1 draws only the
     // shine
     c.strokeStyle = "rgba(255,255,255,.6)"; c.lineWidth = 2.5;
     c.beginPath(); c.moveTo(6, P.base - 14); c.quadraticCurveTo(8, 24, 18, 22);
-    for (const d of P.drips) if (d.L > 22) { c.moveTo(d.cx - d.w * 0.22, P.base + 6); c.lineTo(d.cx - d.w * 0.22, P.base + d.L - 6); }
-    if (P.hearts) for (const [x, y, s] of P.hearts) { c.moveTo(x - s * 0.75, y - s * 0.25); c.quadraticCurveTo(x - s * 0.7, y - s * 0.7, x - s * 0.35, y - s * 0.75); }
+    for (const d of drips) if (d.L > 22) { c.moveTo(d.cx - d.w * 0.22, P.base + 6); c.lineTo(d.cx - d.w * 0.22, P.base + d.L - 6); }
+    for (const [x, y, s] of hearts) { c.moveTo(x - s * 0.75, y - s * 0.25); c.quadraticCurveTo(x - s * 0.7, y - s * 0.7, x - s * 0.35, y - s * 0.75); }
     c.stroke();
-    if (P.foam) { c.fillStyle = "rgba(255,255,255,.85)"; for (const [x, y, rad] of P.foam.slice(0, 6)) { c.beginPath(); c.arc(x - rad * 0.35, y - rad * 0.35, rad * 0.22, 0, 7); c.fill(); } }
+    c.fillStyle = "rgba(255,255,255,.85)";
+    for (const [x, y, rad] of foam.slice(0, 6)) { c.beginPath(); c.arc(x - rad * 0.35, y - rad * 0.35, rad * 0.22, 0, 7); c.fill(); }
   }
 
   // lid
@@ -419,13 +414,12 @@ function drawJar(c, idx, level, rgb, half = 0) { // half: -1 or 1 draws only the
 }
 
 /* ===== poster ===== */
-function drawPoster(canvas, scale) {
+function drawPoster(canvas) {
   const rgb = hexToRgb(state.color), orgb = other && hexToRgb(other.color);
   // comparing needs a second legend row and room under the labels for the other person's jar name
   const pitch = other ? 420 : 345, top0 = other ? 310 : 260, H = other ? top0 + (ROWS - 1) * pitch + 420 : PH;
-  canvas.width = PW * scale; canvas.height = H * scale;
+  canvas.width = PW; canvas.height = H;
   const c = canvas.getContext("2d");
-  c.setTransform(scale, 0, 0, scale, 0, 0);
   c.fillStyle = "#fff"; c.fillRect(0, 0, PW, H);
 
   c.fillStyle = INK; c.textBaseline = "alphabetic"; c.textAlign = "left";
@@ -456,8 +450,8 @@ function drawPoster(canvas, scale) {
   }
 
   JARS.forEach((label, i) => {
-    const [x, top] = jarXY(i, pitch, top0), cx = x + 48;
-    c.save(); c.translate(x, top);
+    const cx = PW / 2 + (i % COLS - (COLS - 1) / 2) * 150, top = top0 + Math.floor(i / COLS) * pitch;
+    c.save(); c.translate(cx - 48, top);
     if (other) { // one jar, two halves: mine on the left, their matching jar on the right
       const a = state.answers[i], b = other.answers[MATE[i]];
       drawJar(c, i, a, rgb, -1); drawJar(c, i, b, orgb, 1);
@@ -487,48 +481,23 @@ function drawMini(canvas, idx, level, rgb) {
   drawJar(c, idx, level, rgb);
 }
 
-/* ===== reading a saved picture back =====
-   A saved picture is its own save file. Each jar is redrawn in black with every possible answer, and the answer whose
-   silhouette sits closest to the picture wins. The color is then solved from the pixels of that redraw that follow the
-   color (redrawn in white too, each pixel is a known mix: picture = dark + (lit - dark) * color / 255). */
-const blank = (d, k) => d[k + 3] < 128 || Math.min(d[k], d[k + 1], d[k + 2]) > 240;
-function readPoster(img) {
-  if (img.width < 600 || Math.abs(img.width / img.height * PH / PW - 1) > 0.02) return null; // thumbnails misread; other shapes are not ours
-  const big = document.createElement("canvas"), tmp = document.createElement("canvas");
-  big.width = PW; big.height = PH;
-  const c = big.getContext("2d", { willReadFrequently: true }), t = tmp.getContext("2d", { willReadFrequently: true });
-  c.fillStyle = "#fff"; c.fillRect(0, 0, PW, PH); c.drawImage(img, 0, 0, PW, PH);
-  const redraw = (i, v, rgb) => { drawMini(tmp, i, v, rgb); return t.getImageData(0, 0, 152, 248).data; };
-  const hist = [0, 1, 2].map(() => new Uint32Array(256)), drawn = new Uint8Array(152 * 248);
-  const from = 12 * 152; // skip the top rows of the box, where the labels of the row above can reach
-  let ink = 0, inked = 0, hit = 0, seen = 0;
-  const answers = JARS.map((_, i) => {
-    const [x, y] = jarXY(i), src = c.getImageData(x - 28, y - 62, 152, 248).data; // same box and offset as drawMini
-    let there = 0;
-    for (let j = from; j < drawn.length; j++) there += drawn[j] = blank(src, j * 4) ? 0 : 1;
-    let best = 0, low = Infinity, dark, bestN = 0, bestBoth = 0;
-    for (let v = 0; v <= LIMIT; v++) {
-      const px = redraw(i, v, [0, 0, 0]);
-      let n = 0, both = 0;
-      for (let j = from; j < drawn.length; j++) if (!blank(px, j * 4)) { n++; both += drawn[j]; }
-      if (n + there - 2 * both < low) { low = n + there - 2 * both; best = v; dark = px; bestN = n; bestBoth = both; }
-    }
-    ink += bestN; inked += there; hit += bestBoth;
-    const lit = redraw(i, best, [255, 255, 255]);
-    for (let k = 0; k < lit.length; k += 4) {
-      if (dark[k + 3] < 255 || lit[k] - dark[k] < 190 || lit[k + 1] - dark[k + 1] < 190 || lit[k + 2] - dark[k + 2] < 190) continue;
-      for (let n = 0; n < 3; n++) hist[n][Math.max(0, Math.min(255, Math.round((src[k + n] - dark[k + n]) * 255 / (lit[k + n] - dark[k + n]))))]++;
-      seen++;
-    }
-    return best;
-  });
-  if (hit < ink * 0.85 || hit < inked * 0.6) return null; // our lines are missing, or far too much else is there: not one of our pictures
-  let color = null;
-  if (seen > 200) {
-    const rgb = hist.map(h => { let n = 0, v = 0; while ((n += h[v]) * 2 < seen) v++; return v; });
-    color = PRESETS.find(p => hexToRgb(p).every((v, k) => Math.abs(v - rgb[k]) < 8)) || rgbToHex(rgb);
-  }
-  return { answers, color };
+/* ===== links =====
+   A sheet travels as a link. Everything sits after the #, which browsers never send to the host.
+   "1" (the format) + color (6 hex) + one digit per jar (0-7) + the name as UTF-8 hex. */
+const pack = s => "1" + rgbToHex(hexToRgb(s.color)).slice(1) + s.answers.join("") + [...new TextEncoder().encode(s.name.trim())].map(b => b.toString(16).padStart(2, "0")).join("");
+function unpack(text) { // takes a whole link, or just the part after the #
+  const m = new RegExp(`(?:^|#)1([0-9a-f]{6})([0-7]{${JARS.length}})((?:[0-9a-f]{2})*)`).exec(text.trim().toLowerCase());
+  if (!m) return null;
+  let name = "";
+  try { name = new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(m[3].match(/../g) || [], h => parseInt(h, 16))); } catch (e) {}
+  return { name: name.slice(0, 24), color: "#" + m[1], answers: [...m[2]].map(Number) };
+}
+const myLink = () => location.href.split("#")[0] + "#" + pack(state);
+const bare = () => { try { history.replaceState(null, "", location.href.split("#")[0]); } catch (e) {} };
+function fromHash() { // an opened link means: compare with that sheet. It stays in the address bar, so a reload keeps it.
+  other = unpack(location.hash);
+  if (!other || pack(other) !== pack(state)) return "";
+  other = null; bare(); return "That one is your own link.";
 }
 
 /* ===== UI ===== */
@@ -593,67 +562,50 @@ function render() {
   });
   const n = state.answers.filter(Boolean).length;
   $("progress").textContent = `${n} of ${JARS.length} answered`;
-  $("save").textContent = $("saveBar").textContent = other ? "Save our jars" : "Save my jars";
-  $("cmpBtn").textContent = other ? "Use another picture" : "Add their picture";
-  $("oname").hidden = $("cmpStop").hidden = !other;
+  const link = myLink();
+  if ($("mylink").value !== link) { $("mylink").value = link; $("shareMsg").textContent = ""; }
+  $("notice").hidden = $("cmpOn").hidden = !other;
   if (other) {
-    const m = state.answers.filter((v, i) => high(v) && high(other.answers[MATE[i]])).length;
-    say(`${m} ${m === 1 ? "match" : "matches"}. A heart marks every jar you both rated 4 or 5.`);
+    const who = other.name || "someone", m = state.answers.filter((v, i) => high(v) && high(other.answers[MATE[i]])).length;
+    $("noticeText").textContent = `You are comparing with ${who}. In the picture, your jars are on the left and theirs on the right.`;
+    say(`Comparing with ${who}. ${m} ${m === 1 ? "match" : "matches"}: a heart marks every jar you both rated 4 or 5.`);
   }
-  drawPoster($("poster"), 1);
+  drawPoster($("poster"));
 }
 
-async function save() {
-  const out = document.createElement("canvas");
-  drawPoster(out, 2);
-  const blob = await new Promise(res => out.toBlob(res, "image/png"));
-  const slug = (other ? state.name + " " + other.name : state.name).trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const fname = (slug ? slug + "-" : "") + "kink-jars.png";
-  const file = new File([blob], fname, { type: "image/png" });
-  const touch = matchMedia("(pointer: coarse)").matches;
-  if (touch && navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file] }); return; }
+async function share() {
+  const url = myLink();
+  if (matchMedia("(pointer: coarse)").matches && navigator.share) {
+    try { await navigator.share({ title: document.title, url }); return; }
     catch (e) { if (e.name === "AbortError") return; }
   }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a"); a.href = url; a.download = fname;
-  document.body.appendChild(a); a.click(); a.remove();
-  $("modalImg").src = url; $("modal").hidden = false; $("closeModal").focus();
+  try { await navigator.clipboard.writeText(url); $("shareMsg").textContent = "Link copied. Send it to whoever should see your jars."; }
+  catch (e) { $("mylink").focus(); $("shareMsg").textContent = "Copy the link above and send it."; }
 }
-$("save").onclick = save; $("saveBar").onclick = save;
-$("closeModal").onclick = () => { $("modal").hidden = true; };
-$("modal").addEventListener("click", e => { if (e.target.id === "modal") $("modal").hidden = true; });
+$("share").onclick = share; $("shareBar").onclick = share;
+$("mylink").onfocus = e => e.target.select();
 $("reset").onclick = () => {
   if (!confirm("Empty all the jars and start over?")) return;
-  state.answers = JARS.map(() => 0); state.name = ""; $("name").value = ""; other = null; say(""); persist(); update(); scrollTo({ top: 0, behavior: "smooth" });
+  state.answers = JARS.map(() => 0); state.name = ""; $("name").value = ""; other = null; bare(); say(""); persist(); update(); scrollTo({ top: 0, behavior: "smooth" });
 };
 
-/* ===== compare with someone / load a saved picture ===== */
-let want = "";
-function say(text) { $("readMsg").textContent = text; }
-const pick = whose => { want = whose; $("file").value = ""; $("file").click(); };
-$("cmpBtn").onclick = () => pick("theirs"); $("loadBtn").onclick = () => pick("mine");
-$("file").onchange = async e => {
-  const f = e.target.files[0]; if (!f) return;
-  let got = null;
-  try {
-    const im = new Image(), url = URL.createObjectURL(f);
-    await new Promise((ok, no) => { im.onload = ok; im.onerror = no; im.src = url; });
-    got = readPoster(im); URL.revokeObjectURL(url);
-  } catch (err) {}
-  if (!got) return say("Couldn't read that one. It has to be a whole picture saved from this page, not a crop or a screenshot.");
-  const m = /^(.+)-kink-jars/i.exec(f.name), nm = m ? m[1].replace(/-/g, " ").slice(0, 24) : ""; // our own file names start with the name
-  if (want === "theirs") { other = { name: nm, color: got.color || "#888888", answers: got.answers }; $("oname").value = nm; }
-  else {
-    if (state.answers.some(Boolean) && !confirm("Swap the jars you have now for the ones in this picture?")) return;
-    state.answers = got.answers; if (got.color) state.color = got.color;
-    if (!state.name.trim() && nm) $("name").value = state.name = nm;
-    persist(); say("Loaded. Have a look and fix any jar that came out wrong.");
-  }
-  update();
+/* ===== compare with someone ===== */
+function say(text) { $("cmpMsg").textContent = text; }
+$("cmpForm").onsubmit = e => {
+  e.preventDefault();
+  const sheet = unpack($("olink").value);
+  if (!sheet) return say("That doesn't look like a link from this page.");
+  $("olink").value = ""; location.hash = pack(sheet); // the hashchange handler takes it from here
 };
-$("oname").addEventListener("input", e => { other.name = e.target.value; update(); });
-$("cmpStop").onclick = () => { other = null; say(""); update(); };
+addEventListener("hashchange", () => { say(fromHash()); update(); });
+$("cmpStop").onclick = () => { other = null; bare(); say(""); update(); };
+$("adopt").onclick = () => {
+  if (state.answers.some(Boolean) && !confirm("Swap the jars you have now for these?")) return;
+  state = other; other = null; $("name").value = state.name; bare(); persist(); say("These are your jars now."); update();
+};
+$("toPoster").onclick = () => $("done").scrollIntoView({ behavior: "smooth" });
+
+say(fromHash());
 
 render();
 Promise.all(["700 104px Oswald, Impact, 'Arial Narrow', sans-serif", "600 30px Oswald", "500 30px Oswald, 'Arial Narrow', sans-serif", '66px "Permanent Marker"'].map(f => document.fonts.load(f)))
