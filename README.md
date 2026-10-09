@@ -27,5 +27,6 @@ Netlify Drop or Cloudflare Pages work too: drag the folder in, done.
 - **Jar labels:** edit the `JARS` array at the top of the `<script>`. Each entry is a list of label lines. The grid is 7 columns wide and grows rows as needed.
 - **Explainers:** `ABOUT` holds the one-line text behind each "What's this?" link, keyed by the jar's label. A jar without an entry simply gets no link.
 - **Give/receive pairs:** `PAIRS` lists which jars are two sides of one thing, by their position in `JARS`. Keep it in step when you reorder jars.
+- **Changing the set starts everyone fresh.** Answers and links are stored by position, so after adding, removing or reordering jars, bump `STORE` and the format digit in `pack` and `unpack`. Saved answers and links from the old set are then dropped instead of landing on the wrong jars. The current set has 35 jars (storage `kinkjars-v2`, link format `2`).
 - **Preset colors:** edit `PRESETS`.
 - **Overflow looks:** six styles (drips, puddle, foam with popped lid, geyser, splash, hearts), assigned so neighbors never match. Details are seeded per jar, so every friend's sheet is consistent.

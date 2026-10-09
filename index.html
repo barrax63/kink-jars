@@ -197,54 +197,62 @@
   </div>
 </div>
 
-<div class="bar"><div class="bar-in"><span id="progress">0 of 28 answered</span><button class="big" id="shareBar" type="button">Share my link</button></div></div>
+<div class="bar"><div class="bar-in"><span id="progress">0 of 35 answered</span><button class="big" id="shareBar" type="button">Share my link</button></div></div>
 
 <script>
 /* ===== Edit the jars here. Each array is the label, one entry per line. ===== */
 const JARS = [
-  ["being","a dom"],["being","a sub"],["being","a switch"],["choking"],["being","choked"],["spanking"],["being","spanked"],
-  ["ddlg / mdlb"],["age","play"],["doing stuff","in public"],["wax","play"],["water","sports"],["role","play"],["consensual","non consent"],
-  ["having","orgasms","controlled"],["controlling","orgasms"],["gags"],["feet"],["anal"],["being","tied up"],["tying","people up"],
-  ["humiliating","or","degrading"],["being","humiliated","or","degraded"],["bdsm"],["threesomes"],["sadism"],["masochism"],["spit"]
+  ["being","a dom"],["being","a sub"],["praising"],["being","praised"],["degrading"],["being","degraded"],["dirty","talk"],
+  ["spanking"],["being","spanked"],["choking"],["being","choked"],["giving","pain"],["receiving","pain"],["rough","sex"],
+  ["tying","people up"],["being","tied up"],["controlling","orgasms"],["having","orgasms","controlled"],["gags"],["blindfolds"],["wax","play"],
+  ["being the","caregiver"],["being","the little"],["cnc,","taking","charge"],["cnc,","resisting"],["role","play"],["doing stuff","in public"],["threesomes","and more"],
+  ["giving","anal"],["receiving","anal"],["watching"],["being","watched"],["feet"],["spit"],["water","sports"]
 ];
 /* Give/receive pairs, by position in JARS. When two people compare, each of these is set against the other person's opposite jar. */
-const PAIRS = [[0, 1], [3, 4], [5, 6], [14, 15], [19, 20], [21, 22], [25, 26]];
+const PAIRS = [[0, 1], [2, 3], [4, 5], [7, 8], [9, 10], [11, 12], [14, 15], [16, 17], [21, 22], [23, 24], [28, 29], [30, 31]];
 /* One-line explainers, shown behind "What's this?". Keyed by the label text, so order doesn't matter; a jar without one gets no link. */
 const ABOUT = {
   "being a dom": "Taking the lead. You set the pace and call the shots, inside limits you both agreed.",
   "being a sub": "Handing over the lead. You follow your partner's direction, inside limits you both agreed.",
-  "being a switch": "Liking both sides: leading at some times, following at others.",
-  "choking": "Pressing on a partner's neck or throat, also called breath play. It is never risk-free, even done carefully.",
-  "being choked": "Having a partner press on your neck or throat, also called breath play. It is never risk-free, even done carefully.",
+  "praising": "Telling a partner how good they are or how well they are doing, as part of play.",
+  "being praised": "Being told how good you are or how well you are doing, as part of play.",
+  "degrading": "Embarrassing or putting down a partner who enjoys that as play, with words or tasks.",
+  "being degraded": "Enjoying being embarrassed or put down by a partner as play, with words or tasks.",
+  "dirty talk": "Saying explicit things out loud during sex, or having them said to you.",
   "spanking": "Hitting a partner's bottom with a hand, or with something like a paddle.",
   "being spanked": "Being hit on the bottom with a hand, or with something like a paddle.",
-  "ddlg / mdlb": "Daddy dom / little girl, mommy dom / little boy. Role play between adults: one is the caring one in charge, the other the looked-after \"little\".",
-  "age play": "Role play between adults in which one or both act a different age than they are.",
-  "doing stuff in public": "Being sexual somewhere you could be seen or caught, or playing with that risk.",
-  "wax play": "Dripping warm wax onto skin, from candles made to melt at a low heat.",
-  "water sports": "Play that involves urine.",
-  "role play": "Acting out characters or a made-up situation together.",
-  "consensual non consent": "A scene you plan together where one person pretends to resist. Limits and a safeword are agreed first. Often shortened to CNC.",
-  "having orgasms controlled": "Your partner decides when you get to orgasm, or whether you do.",
-  "controlling orgasms": "You decide when your partner gets to orgasm, or whether they do.",
-  "gags": "Something worn in or over the mouth that muffles speech.",
-  "feet": "Being turned on by feet: touching, kissing or looking at them, or having yours treated that way.",
-  "anal": "Sexual play involving the anus, giving or receiving.",
-  "being tied up": "Being held in place with rope, cuffs or similar, so you can't move freely.",
+  "choking": "Pressing on a partner's neck or throat, also called breath play.",
+  "being choked": "Having a partner press on your neck or throat, also called breath play.",
+  "giving pain": "Enjoying giving pain or intense sensation to a partner who wants it. Also called sadism.",
+  "receiving pain": "Enjoying receiving pain or intense sensation. Also called masochism.",
+  "rough sex": "Sex with more force than usual: hair pulling, biting, scratching, slapping or being held down.",
   "tying people up": "Holding a partner in place with rope, cuffs or similar.",
-  "humiliating or degrading": "Embarrassing or putting down a partner who enjoys that as play, with words or tasks.",
-  "being humiliated or degraded": "Enjoying being embarrassed or put down by a partner as play, with words or tasks.",
-  "bdsm": "An umbrella term: bondage and discipline, dominance and submission, sadism and masochism.",
-  "threesomes": "Sex with three people involved.",
-  "sadism": "Enjoying giving pain or intense sensation to a partner who wants it.",
-  "masochism": "Enjoying receiving pain or intense sensation.",
-  "spit": "Spitting on a partner or being spat on, as part of play."
+  "being tied up": "Being held in place with rope, cuffs or similar, so you can't move freely.",
+  "controlling orgasms": "You decide when your partner gets to orgasm, or whether they do.",
+  "having orgasms controlled": "Your partner decides when you get to orgasm, or whether you do.",
+  "gags": "Something worn in or over the mouth that muffles speech.",
+  "blindfolds": "Covering the eyes, yours or your partner's, so touch and sound take over.",
+  "wax play": "Dripping warm wax onto skin, from candles made to melt at a low heat.",
+  "being the caregiver": "Role play between adults: you are the caring one in charge, often called daddy or mommy. Also known as ddlg, mdlb or age play.",
+  "being the little": "Role play between adults: you are the looked-after \"little\" and act younger than you are. Also known as ddlg, mdlb or age play.",
+  "cnc, taking charge": "Consensual non-consent: a scene you plan together where your partner pretends to resist and you carry on. Limits and a safeword are agreed first.",
+  "cnc, resisting": "Consensual non-consent: a scene you plan together where you pretend to resist and your partner carries on. Limits and a safeword are agreed first.",
+  "role play": "Acting out characters or a made-up situation together.",
+  "doing stuff in public": "Being sexual somewhere you could be seen or caught, or playing with that risk.",
+  "threesomes and more": "Sex with three or more people involved.",
+  "giving anal": "Anal play on the giving side: you touch or penetrate your partner.",
+  "receiving anal": "Anal play on the receiving side: your partner touches or penetrates you.",
+  "watching": "Watching others be sexual, with their consent.",
+  "being watched": "Having others watch you be sexual, with their consent.",
+  "feet": "Being turned on by feet: touching, kissing or looking at them, or having yours treated that way.",
+  "spit": "Spitting on a partner or being spat on, as part of play.",
+  "water sports": "Play that involves urine."
 };
 const PRESETS = ["#e63946","#ff5d8f","#ff8c42","#ffd23f","#7bd389","#2ec4b6","#3a86ff","#5b2a86","#c77dff","#8d1d3a","#8d5524","#2b2d42"];
 const COLS = 7, INK = "#151311", PW = 1200;
 const ROWS = Math.ceil(JARS.length / COLS);
 const PH = 260 + (ROWS - 1) * 345 + 360;
-const STORE = "kinkjars-v1";
+const STORE = "kinkjars-v2"; // bumped with the jar set: answers are positional, so each set starts fresh
 const CURIOUS = 6, LIMIT = 7, MARKS = { [CURIOUS]: "Curious", [LIMIT]: "Hard limit" }; // answer values past the 1–5 fill levels
 const MATE = JARS.map((_, i) => i); PAIRS.forEach(([a, b]) => { MATE[a] = b; MATE[b] = a; });
 const high = v => v === 4 || v === 5;
@@ -252,6 +260,7 @@ const high = v => v === 4 || v === 5;
 /* ===== state ===== */
 let state = { name: "", color: "#e63946", answers: JARS.map(() => 0) }, firstVisit = true;
 try {
+  localStorage.removeItem("kinkjars-v1"); // answers for the earlier jar set
   const s = JSON.parse(localStorage.getItem(STORE) || "null");
   if (s && Array.isArray(s.answers)) { state = { ...state, ...s, answers: JARS.map((_, i) => s.answers[i] || 0) }; firstVisit = false; }
 } catch (e) {}
@@ -604,10 +613,10 @@ function svgSurface(svg) {
 
 /* ===== links =====
    A sheet travels as a link. Everything sits after the #, which browsers never send to the host.
-   "1" (the format) + color (6 hex) + one digit per jar (0-7) + the name as UTF-8 hex. */
-const pack = s => "1" + rgbToHex(hexToRgb(s.color)).slice(1) + s.answers.join("") + [...new TextEncoder().encode(s.name.trim())].map(b => b.toString(16).padStart(2, "0")).join("");
+   "2" (the format, bumped with the jar set) + color (6 hex) + one digit per jar (0-7) + the name as UTF-8 hex. */
+const pack = s => "2" + rgbToHex(hexToRgb(s.color)).slice(1) + s.answers.join("") + [...new TextEncoder().encode(s.name.trim())].map(b => b.toString(16).padStart(2, "0")).join("");
 function unpack(text) { // takes a whole link, or just the part after the #
-  const m = new RegExp(`(?:^|#)1([0-9a-f]{6})([0-7]{${JARS.length}})((?:[0-9a-f]{2})*)`).exec(text.trim().toLowerCase());
+  const m = new RegExp(`(?:^|#)2([0-9a-f]{6})([0-7]{${JARS.length}})((?:[0-9a-f]{2})*)`).exec(text.trim().toLowerCase());
   if (!m) return null;
   let name = "";
   try { name = new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(m[3].match(/../g) || [], h => parseInt(h, 16))); } catch (e) {}
